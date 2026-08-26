@@ -3,8 +3,10 @@ import { recoveryTone, remainingInjections, runwayTone, todayHero } from "../sha
 import { looksLikeGarminActivitiesCsv, parseImportFile } from "../shared/import/index.ts";
 import { parseHelixHelper } from "../shared/import/helix.ts";
 import { HELIX_EXPORT_KIND } from "../shared/types.ts";
+import { doseSheetMode } from "../shared/dose-sheet.ts";
 import { createApp } from "./app.ts";
-import { createSqliteDb, migrate } from "./db.ts";
+import { createSqliteDb, migrate, type Database } from "./db.ts";
+import { POSTGRES_SCHEMA, schemaFor } from "./schema.ts";
 import { globSync, readFileSync } from "node:fs";
 
 async function testApp() {
@@ -95,6 +97,40 @@ describe("doses", () => {
     const vials = await app.request("/api/vials", { headers });
     const list = (await vials.json()) as { vials: Array<{ remainingAmount: number; remainingInjections: number }> };
     expect(list.vials[0].remainingInjections).toBe(9);
+  });
+});
+
+describe("dose sheet mode", () => {
+  it("is undo when already logged, save otherwise", () => {
+    expect(doseSheetMode(undefined).kind).toBe("save");
+    const mode = doseSheetMode({ id: "d1", amount: 250, unit: "mcg" });
+    expect(mode.kind).toBe("undo");
+    if (mode.kind === "undo") expect(mode.doseId).toBe("d1");
+  });
+});
+
+describe("postgres schema", () => {
+  it("uses a Postgres migrate path, not the SQLite statements", async () => {
+    const statements: string[] = [];
+    const db: Database = {
+      dialect: "postgres",
+      all: async () => [],
+      get: async () => undefined,
+      run: async () => ({ changes: 0 }),
+      exec: async (sql) => {
+        statements.push(sql);
+      },
+    };
+    await migrate(db);
+    expect(statements).toEqual(POSTGRES_SCHEMA);
+    const blob = statements.join("\n");
+    expect(blob).toMatch(/jsonb/);
+    expect(blob).toMatch(/double precision/);
+    expect(blob).toMatch(/timestamptz/);
+    expect(blob).toMatch(/boolean NOT NULL DEFAULT FALSE/);
+    expect(blob).toMatch(/WHERE NOT undone/);
+    expect(blob).not.toMatch(/INTEGER NOT NULL DEFAULT 0/);
+    expect(schemaFor("sqlite").join("\n")).toMatch(/INTEGER NOT NULL DEFAULT 0/);
   });
 });
 

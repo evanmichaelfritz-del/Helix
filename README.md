@@ -29,7 +29,7 @@ npm run build
 3. Set environment variables:
    - `DATABASE_URL` = the Neon string
    - `SESSION_SECRET` = a long random value (`openssl rand -base64 32`)
-4. Deploy. Hobby is enough. The API is the `/api` serverless function. It will not use SQLite on Vercel.
+4. Deploy. Hobby is enough. The API is the `/api` serverless function. It will not use SQLite on Vercel. On first request it runs a Postgres schema (`jsonb`, `boolean`, `timestamptz`, `double precision`).
 
 PWA name is Helix. Add to Home Screen on your phone after the first deploy.
 

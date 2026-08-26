@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { neon } from "@neondatabase/serverless";
-import { SCHEMA_STATEMENTS } from "./schema.ts";
+import { schemaFor } from "./schema.ts";
 
 export type SqlValue = string | number | null | bigint | boolean;
 
@@ -10,6 +10,7 @@ export type Database = {
   all: <T>(sql: string, params?: SqlValue[]) => Promise<T[]>;
   get: <T>(sql: string, params?: SqlValue[]) => Promise<T | undefined>;
   run: (sql: string, params?: SqlValue[]) => Promise<{ changes: number }>;
+  exec: (sql: string) => Promise<void>;
 };
 
 export function isPostgresUrl(url: string | undefined): boolean {
@@ -31,8 +32,8 @@ export async function connectDb(url = process.env.DATABASE_URL): Promise<Databas
 }
 
 export async function migrate(db: Database): Promise<void> {
-  for (const statement of SCHEMA_STATEMENTS) {
-    await db.run(statement);
+  for (const statement of schemaFor(db.dialect)) {
+    await db.exec(statement);
   }
 }
 
@@ -56,6 +57,10 @@ function createNeonDb(url: string): Database {
     async run(query: string, params: SqlValue[] = []) {
       await sql.query(toPg(query), params);
       return { changes: 0 };
+    },
+    async exec(statement: string) {
+      const tpl = Object.assign([statement], { raw: [statement] }) as unknown as TemplateStringsArray;
+      await sql(tpl);
     },
   };
 }
@@ -84,6 +89,9 @@ export async function createSqliteDb(url: string): Promise<Database> {
     async run(query: string, params: SqlValue[] = []) {
       const result = await client.execute({ sql: query, args: params });
       return { changes: result.rowsAffected };
+    },
+    async exec(statement: string) {
+      await client.execute(statement);
     },
   };
 }

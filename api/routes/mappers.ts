@@ -2,6 +2,7 @@ import type { Dose, HealthDay, Peptide, PeptideUnit, Vial, WeighIn, Workout } fr
 import { parseLocalDate } from "../../shared/types.ts";
 import type { DoseRow, HealthDayRow, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.ts";
 import { num } from "../context.ts";
+import { isUndone } from "../dialect.ts";
 
 function unitOf(unit: string): PeptideUnit {
   if (unit === "mcg" || unit === "mg" || unit === "IU" || unit === "mL") return unit;
@@ -45,7 +46,7 @@ export function mapDose(row: DoseRow): Dose {
     unit: unitOf(row.unit),
     loggedOn: dateOf(row.logged_on),
     loggedAt: row.logged_at,
-    undone: Number(row.undone) !== 0,
+    undone: isUndone(row.undone),
   };
 }
 

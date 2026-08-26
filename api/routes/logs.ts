@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PEPTIDE_UNITS } from "../../shared/types.ts";
 import { newId, requireUser } from "../auth.ts";
 import type { DoseRow, Env, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.ts";
+import { activeDoseSql, isUndone, undoneParam } from "../dialect.ts";
 import { mapDose, mapWeighIn, mapWorkout } from "./mappers.ts";
 import { parseOn } from "./today.ts";
 
@@ -15,7 +16,8 @@ doseRoutes.get("/", async (c) => {
   const on = parseOn(c.req.query("on"));
   const from = parseOn(c.req.query("from"));
   const to = parseOn(c.req.query("to"));
-  let sql = "SELECT * FROM doses WHERE user_id = ? AND undone = 0";
+  const dialect = db.dialect;
+  let sql = `SELECT * FROM doses WHERE user_id = ? AND ${activeDoseSql(dialect)}`;
   const params: Array<string> = [user.id];
   if (on) {
     sql += " AND logged_on = ?";
@@ -57,7 +59,7 @@ doseRoutes.post(
     );
     if (!peptide) return c.json({ error: "Peptide not found." }, 404);
     const existing = await db.get<DoseRow>(
-      "SELECT * FROM doses WHERE user_id = ? AND peptide_id = ? AND logged_on = ? AND undone = 0",
+      `SELECT * FROM doses WHERE user_id = ? AND peptide_id = ? AND logged_on = ? AND ${activeDoseSql(db.dialect)}`,
       [user.id, body.peptideId, body.loggedOn],
     );
     if (existing) {
@@ -85,11 +87,11 @@ doseRoutes.post(
       unit: body.unit ?? peptide.unit,
       logged_on: body.loggedOn,
       logged_at: now,
-      undone: 0,
+      undone: undoneParam(db.dialect, false),
     };
     try {
       await db.run(
-        "INSERT INTO doses (id, user_id, peptide_id, vial_id, amount, unit, logged_on, logged_at, undone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
+        "INSERT INTO doses (id, user_id, peptide_id, vial_id, amount, unit, logged_on, logged_at, undone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
           row.id,
           row.user_id,
@@ -99,6 +101,7 @@ doseRoutes.post(
           row.unit,
           row.logged_on,
           row.logged_at,
+          undoneParam(db.dialect, false),
         ],
       );
     } catch {
@@ -121,8 +124,8 @@ doseRoutes.post("/:id/undo", async (c) => {
     user.id,
   ]);
   if (!row) return c.json({ error: "Dose not found." }, 404);
-  if (Number(row.undone) !== 0) return c.json({ dose: mapDose(row) });
-  await db.run("UPDATE doses SET undone = 1 WHERE id = ?", [row.id]);
+  if (isUndone(row.undone)) return c.json({ dose: mapDose(row) });
+  await db.run("UPDATE doses SET undone = ? WHERE id = ?", [undoneParam(db.dialect, true), row.id]);
   if (row.vial_id) {
     const vial = await db.get<VialRow>("SELECT * FROM vials WHERE id = ? AND user_id = ?", [
       row.vial_id,
@@ -135,7 +138,7 @@ doseRoutes.post("/:id/undo", async (c) => {
       ]);
     }
   }
-  return c.json({ dose: mapDose({ ...row, undone: 1 }) });
+  return c.json({ dose: mapDose({ ...row, undone: undoneParam(db.dialect, true) }) });
 });
 
 export const weighInRoutes = new Hono<Env>();

@@ -3,6 +3,7 @@ import { remainingInjections, runwayTone, todayHero } from "../../shared/health.
 import { parseLocalDate, type LocalDate, type TodayPayload } from "../../shared/types.ts";
 import { requireUser } from "../auth.ts";
 import type { DoseRow, Env, HealthDayRow, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.ts";
+import { activeDoseSql } from "../dialect.ts";
 import { mapPeptide, mapVial, mapWorkout } from "./mappers.ts";
 
 export const todayRoutes = new Hono<Env>();
@@ -53,7 +54,7 @@ export async function loadToday(opts: {
     [userId],
   );
   const dosesToday = await db.all<DoseRow>(
-    "SELECT * FROM doses WHERE user_id = ? AND logged_on = ? AND undone = 0",
+    `SELECT * FROM doses WHERE user_id = ? AND logged_on = ? AND ${activeDoseSql(db.dialect)}`,
     [userId, on],
   );
 

@@ -25,7 +25,7 @@ export function ProtocolLayout() {
 }
 
 export function ProtocolHome() {
-  const { gen, openSheet, setPeptides, peptides } = useAppState();
+  const { gen, bump, openSheet, setPeptides, peptides } = useAppState();
   const [vials, setVials] = useState<Vial[]>([]);
   const [doses, setDoses] = useState<Dose[]>([]);
   const on = todayLocal();
@@ -56,6 +56,12 @@ export function ProtocolHome() {
   const amount = loggedDose?.amount ?? peptide.lastAmount ?? vial?.dose ?? 0;
   const status = due ? "Due today" : "Logged";
 
+  async function undoLogged() {
+    if (!loggedDose) return;
+    await client.undoDose(loggedDose.id);
+    bump();
+  }
+
   return (
     <article className="card protocol-hero">
       <p className="kicker">Next dose</p>
@@ -80,14 +86,22 @@ export function ProtocolHome() {
           Add a vial
         </button>
       )}
-      <button
-        className="btn"
-        style={{ marginTop: 16 }}
-        type="button"
-        onClick={() => openSheet({ kind: "log-dose", peptideId: peptide.id })}
-      >
-        Log dose
-      </button>
+      {loggedDose ? (
+        <div className="row-btns" style={{ marginTop: 16 }}>
+          <button className="btn" type="button" onClick={() => void undoLogged()}>
+            Undo
+          </button>
+        </div>
+      ) : (
+        <button
+          className="btn"
+          style={{ marginTop: 16 }}
+          type="button"
+          onClick={() => openSheet({ kind: "log-dose", peptideId: peptide.id })}
+        >
+          Log dose
+        </button>
+      )}
     </article>
   );
 }

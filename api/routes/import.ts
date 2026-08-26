@@ -4,6 +4,7 @@ import { z } from "zod";
 import { newId, requireUser } from "../auth.ts";
 import type { Env, HealthDayRow, PeptideRow } from "../context.ts";
 import { parseLocalDate, PEPTIDE_COLORS, PEPTIDE_UNITS } from "../../shared/types.ts";
+import { activeDoseSql, undoneParam } from "../dialect.ts";
 
 const daySchema = z.object({
   loggedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -235,12 +236,12 @@ importRoutes.post("/records", zValidator("json", recordsSchema), async (c) => {
       continue;
     }
     const exists = await db.get<{ id: string }>(
-      "SELECT id FROM doses WHERE user_id = ? AND peptide_id = ? AND logged_on = ? AND undone = 0",
+      `SELECT id FROM doses WHERE user_id = ? AND peptide_id = ? AND logged_on = ? AND ${activeDoseSql(db.dialect)}`,
       [user.id, peptideId, d.loggedOn],
     );
     if (exists) continue;
     await db.run(
-      "INSERT INTO doses (id, user_id, peptide_id, vial_id, amount, unit, logged_on, logged_at, undone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
+      "INSERT INTO doses (id, user_id, peptide_id, vial_id, amount, unit, logged_on, logged_at, undone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         newId(),
         user.id,
@@ -250,6 +251,7 @@ importRoutes.post("/records", zValidator("json", recordsSchema), async (c) => {
         d.unit,
         d.loggedOn,
         d.loggedAt ?? new Date().toISOString(),
+        undoneParam(db.dialect, false),
       ],
     );
     doses += 1;

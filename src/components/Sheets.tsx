@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { stepperDelta } from "@shared/health.ts";
-import { PEPTIDE_UNITS, todayLocal, type Peptide, type PeptideUnit } from "@shared/types.ts";
+import { doseSheetMode } from "@shared/dose-sheet.ts";
+import { PEPTIDE_UNITS, todayLocal, type Dose, type Peptide, type PeptideUnit } from "@shared/types.ts";
 import { kgFromInput } from "../lib/format.ts";
 import { ApiError, client } from "../lib/api.ts";
 import { useAppState } from "../lib/state.tsx";
@@ -29,14 +30,44 @@ export function Sheets() {
 
 function LogDoseSheet({ peptideId }: { peptideId?: string }) {
   const { peptides, closeSheet, bump, showToast, openSheet } = useAppState();
-  const peptide = peptides.find((p) => p.id === peptideId) ?? peptides[0];
-  const [amount, setAmount] = useState(peptide?.lastAmount ?? 0);
+  const [todayDoses, setTodayDoses] = useState<Dose[] | null>(null);
+  const [amount, setAmount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    client
+      .doses(todayLocal())
+      .then((r) => {
+        if (!cancelled) setTodayDoses(r.doses.filter((d) => !d.undone));
+      })
+      .catch(() => {
+        if (!cancelled) setTodayDoses([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loggedIds = new Set((todayDoses ?? []).map((d) => d.peptideId));
+  const peptide =
+    (peptideId ? peptides.find((p) => p.id === peptideId) : undefined) ??
+    peptides.find((p) => !loggedIds.has(p.id)) ??
+    peptides[0];
+
+  useEffect(() => {
     if (peptide) setAmount(peptide.lastAmount ?? 0);
   }, [peptide]);
+
+  if (todayDoses == null) {
+    return (
+      <>
+        <h2>Log dose</h2>
+        <p className="muted">Loading…</p>
+      </>
+    );
+  }
 
   if (!peptide) {
     return (
@@ -46,6 +77,44 @@ function LogDoseSheet({ peptideId }: { peptideId?: string }) {
         <button className="btn" onClick={() => openSheet({ kind: "add-peptide" })}>
           Add a peptide
         </button>
+      </>
+    );
+  }
+
+  const logged = todayDoses.find((d) => d.peptideId === peptide.id);
+  const mode = doseSheetMode(logged);
+
+  async function undo() {
+    if (mode.kind !== "undo") return;
+    setSaving(true);
+    setError(null);
+    try {
+      await client.undoDose(mode.doseId);
+      closeSheet();
+      bump();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not undo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (mode.kind === "undo") {
+    return (
+      <>
+        <h2>Logged {peptide.name}</h2>
+        <p className="unit">
+          {mode.amount} {mode.unit}
+        </p>
+        {error ? <p className="error">{error}</p> : null}
+        <div className="row-btns">
+          <button className="btn" disabled={saving} onClick={() => void undo()}>
+            {saving ? "Undoing…" : "Undo"}
+          </button>
+          <button className="btn ghost" type="button" onClick={closeSheet}>
+            Close
+          </button>
+        </div>
       </>
     );
   }
@@ -92,7 +161,10 @@ function LogDoseSheet({ peptideId }: { peptideId?: string }) {
           +
         </button>
       </div>
-      <p className="unit">{peptide.unit}{peptide.lastAmount != null ? ` · last ${peptide.lastAmount}` : ""}</p>
+      <p className="unit">
+        {peptide.unit}
+        {peptide.lastAmount != null ? ` · last ${peptide.lastAmount}` : ""}
+      </p>
       {error ? <p className="error">{error}</p> : null}
       <button className="btn" disabled={saving || amount <= 0} onClick={() => void save()}>
         {saving ? "Saving…" : "Save"}

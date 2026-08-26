@@ -52,7 +52,7 @@ export type DoseRow = {
   unit: string;
   logged_on: string;
   logged_at: string;
-  undone: number;
+  undone: number | boolean;
 };
 
 export type WeighInRow = {
