@@ -314,7 +314,7 @@ describe("design scaffold locks", () => {
     expect(readFileSync("shared/health.ts", "utf8")).toMatch(/No reading yet/);
     expect(today).toMatch(/\/health#sources/);
     expect(today).not.toMatch(/helix-peptides\.grok\.me/);
-    expect(today).not.toMatch(/Import Whoop/);
+    expect(today).toMatch(/Import Whoop, Garmin, or Apple Health/);
     expect(today).toMatch(/supportingLines/);
     expect(today).toMatch(/pickTodayHero/);
     expect(today).toMatch(/Log dose/);

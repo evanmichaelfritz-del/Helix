@@ -79,7 +79,7 @@ export function TodayPage() {
         <>
           {formatWeight(supporting.weightKg, unit)}
           {delta != null && Math.abs(delta) >= 0.05 ? (
-            <span className={`delta ${delta > 0 ? "up" : "down"}`}> {signedDelta(delta, unit)}</span>
+            <span> {signedDelta(delta, unit)}</span>
           ) : null}
         </>
       ),
@@ -196,7 +196,7 @@ function TodayHero({ hero }: { hero: TodayPayload["hero"] }) {
     <>
       <p className="empty-hero-title">{EMPTY_HERO_TITLE}</p>
       <Link className="hero-cta" to="/health#sources">
-        Vitals
+        Import Whoop, Garmin, or Apple Health
       </Link>
     </>
   );
