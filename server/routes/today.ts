@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { remainingInjections, runwayTone, todayHero } from "../../shared/health.ts";
-import { parseLocalDate, type LocalDate, type TodayPayload } from "../../shared/types.ts";
-import { requireUser } from "../auth.ts";
-import type { DoseRow, Env, HealthDayRow, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.ts";
-import { activeDoseSql } from "../dialect.ts";
-import { mapPeptide, mapVial, mapWorkout } from "./mappers.ts";
+import { remainingInjections, runwayTone, todayHero } from "../../shared/health.js";
+import { parseLocalDate, type LocalDate, type TodayPayload } from "../../shared/types.js";
+import { requireUser } from "../auth.js";
+import type { DoseRow, Env, HealthDayRow, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.js";
+import { activeDoseSql } from "../dialect.js";
+import { mapPeptide, mapVial, mapWorkout } from "./mappers.js";
 
 export const todayRoutes = new Hono<Env>();
 

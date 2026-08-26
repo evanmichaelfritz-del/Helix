@@ -2,8 +2,8 @@ import { randomBytes, randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
-import type { AppContext, UserRow } from "./context.ts";
-import { toPublicUser } from "./context.ts";
+import type { AppContext, UserRow } from "./context.js";
+import { toPublicUser } from "./context.js";
 
 const COOKIE = "helix_session";
 const SESSION_DAYS = 30;

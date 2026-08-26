@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { recoveryTone, remainingInjections, runwayTone, todayHero } from "../shared/health.ts";
-import { looksLikeGarminActivitiesCsv, parseImportFile } from "../shared/import/index.ts";
-import { parseHelixHelper } from "../shared/import/helix.ts";
-import { HELIX_EXPORT_KIND } from "../shared/types.ts";
-import { doseSheetMode } from "../shared/dose-sheet.ts";
-import { createApp } from "./app.ts";
-import { createSqliteDb, migrate, type Database } from "./db.ts";
-import { POSTGRES_SCHEMA, schemaFor } from "./schema.ts";
+import { recoveryTone, remainingInjections, runwayTone, todayHero } from "../shared/health.js";
+import { looksLikeGarminActivitiesCsv, parseImportFile } from "../shared/import/index.js";
+import { parseHelixHelper } from "../shared/import/helix.js";
+import { HELIX_EXPORT_KIND } from "../shared/types.js";
+import { doseSheetMode } from "../shared/dose-sheet.js";
+import { createApp } from "./app.js";
+import { createSqliteDb, migrate, type Database } from "./db.js";
+import { POSTGRES_SCHEMA, schemaFor } from "./schema.js";
 import { globSync, readFileSync } from "node:fs";
 
 async function testApp() {
@@ -200,6 +200,20 @@ describe("vercel hobby function cap", () => {
       return !name.startsWith("_") && !name.startsWith(".") && !name.endsWith(".d.ts");
     });
     expect(files).toEqual(["api/index.ts"]);
+  });
+});
+
+describe("vercel node esm specifiers", () => {
+  it("uses .js specifiers in the serverless graph so compiled output resolves", () => {
+    const files = globSync("{api,server,shared}/**/*.ts");
+    const hits: string[] = [];
+    for (const file of files) {
+      const text = readFileSync(file, "utf8");
+      if (/from\s+["'][^"']+\.ts["']/.test(text) || /import\(\s*["'][^"']+\.ts["']\s*\)/.test(text)) {
+        hits.push(file);
+      }
+    }
+    expect(hits).toEqual([]);
   });
 });
 

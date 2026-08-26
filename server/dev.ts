@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
-import { createApp } from "./app.ts";
-import { connectDb } from "./db.ts";
+import { createApp } from "./app.js";
+import { connectDb } from "./db.js";
 
 const db = await connectDb();
 const app = createApp(db);

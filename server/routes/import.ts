@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { newId, requireUser } from "../auth.ts";
-import type { Env, HealthDayRow, PeptideRow } from "../context.ts";
-import { parseLocalDate, PEPTIDE_COLORS, PEPTIDE_UNITS } from "../../shared/types.ts";
-import { activeDoseSql, undoneParam } from "../dialect.ts";
+import { newId, requireUser } from "../auth.js";
+import type { Env, HealthDayRow, PeptideRow } from "../context.js";
+import { parseLocalDate, PEPTIDE_COLORS, PEPTIDE_UNITS } from "../../shared/types.js";
+import { activeDoseSql, undoneParam } from "../dialect.js";
 
 const daySchema = z.object({
   loggedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

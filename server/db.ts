@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { neon } from "@neondatabase/serverless";
-import { schemaFor } from "./schema.ts";
+import { schemaFor } from "./schema.js";
 
 export type SqlValue = string | number | null | bigint | boolean;
 

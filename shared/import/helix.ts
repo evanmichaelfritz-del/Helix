@@ -1,6 +1,6 @@
-import { HELIX_EXPORT_KIND, type PeptideUnit } from "../types.ts";
-import { emptyRecords } from "./empty.ts";
-import type { ParseResult } from "./result.ts";
+import { HELIX_EXPORT_KIND, type PeptideUnit } from "../types.js";
+import { emptyRecords } from "./empty.js";
+import type { ParseResult } from "./result.js";
 
 export function parseHelixHelper(text: string): ParseResult {
   let raw: unknown;

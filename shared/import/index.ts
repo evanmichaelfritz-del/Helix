@@ -1,12 +1,12 @@
-import { parseAppleHealth } from "./apple.ts";
-import { emptyRecords } from "./empty.ts";
-import { parseGarmin } from "./garmin.ts";
-import { parseHelixHelper } from "./helix.ts";
-import type { ParseResult } from "./result.ts";
-import { parseWhoop } from "./whoop.ts";
+import { parseAppleHealth } from "./apple.js";
+import { emptyRecords } from "./empty.js";
+import { parseGarmin } from "./garmin.js";
+import { parseHelixHelper } from "./helix.js";
+import type { ParseResult } from "./result.js";
+import { parseWhoop } from "./whoop.js";
 
 export { emptyRecords };
-export type { ParseFail, ParseOk, ParseResult } from "./result.ts";
+export type { ParseFail, ParseOk, ParseResult } from "./result.js";
 
 export async function parseImportFile(file: {
   name: string;

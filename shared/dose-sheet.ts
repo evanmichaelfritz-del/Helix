@@ -1,4 +1,4 @@
-import type { Dose, PeptideUnit } from "./types.ts";
+import type { Dose, PeptideUnit } from "./types.js";
 
 export type DoseSheetMode =
   | { kind: "save" }
