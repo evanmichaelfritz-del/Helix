@@ -1,6 +1,6 @@
 import { handle } from "hono/vercel";
-import { createApp } from "./app.ts";
-import { connectDb } from "./db.ts";
+import { createApp } from "../server/app.ts";
+import { connectDb } from "../server/db.ts";
 
 const db = await connectDb();
 const app = createApp(db);

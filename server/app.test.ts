@@ -193,9 +193,19 @@ describe("import parsers", () => {
   });
 });
 
+describe("vercel hobby function cap", () => {
+  it("leaves only api/index.ts as a serverless function", () => {
+    const files = globSync("api/**/*.{ts,js,mjs,cjs}").filter((file) => {
+      const name = file.slice(file.lastIndexOf("/") + 1);
+      return !name.startsWith("_") && !name.startsWith(".") && !name.endsWith(".d.ts");
+    });
+    expect(files).toEqual(["api/index.ts"]);
+  });
+});
+
 describe("no grok.me RPC client", () => {
   it("never fetches helix-peptides.grok.me", () => {
-    const files = globSync("{api,src,shared}/**/*.{ts,tsx}").filter((f) => !f.endsWith(".test.ts"));
+    const files = globSync("{api,server,src,shared}/**/*.{ts,tsx}").filter((f) => !f.endsWith(".test.ts"));
     const hits: string[] = [];
     for (const file of files) {
       const text = readFileSync(file, "utf8");

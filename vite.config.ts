@@ -67,6 +67,6 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["shared/**/*.test.ts", "api/**/*.test.ts"],
+    include: ["shared/**/*.test.ts", "server/**/*.test.ts"],
   },
 });
