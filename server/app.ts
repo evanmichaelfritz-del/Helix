@@ -1,16 +1,16 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { authRoutes } from "./routes/auth.ts";
-import { peptideRoutes, vialRoutes } from "./routes/catalog.ts";
-import type { Env } from "./context.ts";
-import type { Database } from "./db.ts";
-import { ensureMigrated } from "./db.ts";
-import { healthRoutes } from "./routes/health.ts";
-import { importRoutes } from "./routes/import.ts";
-import { doseRoutes, weighInRoutes, workoutRoutes } from "./routes/logs.ts";
-import { meRoutes } from "./routes/me.ts";
-import { todayRoutes } from "./routes/today.ts";
-import { loadUser } from "./auth.ts";
+import { authRoutes } from "./routes/auth.js";
+import { peptideRoutes, vialRoutes } from "./routes/catalog.js";
+import type { Env } from "./context.js";
+import type { Database } from "./db.js";
+import { ensureMigrated } from "./db.js";
+import { healthRoutes } from "./routes/health.js";
+import { importRoutes } from "./routes/import.js";
+import { doseRoutes, weighInRoutes, workoutRoutes } from "./routes/logs.js";
+import { meRoutes } from "./routes/me.js";
+import { todayRoutes } from "./routes/today.js";
+import { loadUser } from "./auth.js";
 
 const PUBLIC = new Set(["/api/healthz", "/api/auth/signup", "/api/auth/login"]);
 

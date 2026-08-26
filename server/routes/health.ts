@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { requireUser } from "../auth.ts";
-import type { Env, HealthDayRow, WeighInRow, WorkoutRow } from "../context.ts";
-import { mapHealthDay, mapWeighIn, mapWorkout } from "./mappers.ts";
-import { parseOn } from "./today.ts";
+import { requireUser } from "../auth.js";
+import type { Env, HealthDayRow, WeighInRow, WorkoutRow } from "../context.js";
+import { mapHealthDay, mapWeighIn, mapWorkout } from "./mappers.js";
+import { parseOn } from "./today.js";
 
 export const healthRoutes = new Hono<Env>();
 

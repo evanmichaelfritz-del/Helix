@@ -1,4 +1,4 @@
-import type { Database } from "./db.ts";
+import type { Database } from "./db.js";
 
 export function activeDoseSql(dialect: Database["dialect"]): string {
   return dialect === "postgres" ? "undone = FALSE" : "undone = 0";

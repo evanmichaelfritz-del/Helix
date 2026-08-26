@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { createSession, destroySession, hashPassword, newId, requireUser, verifyPassword } from "../auth.ts";
-import { toPublicUser, type Env, type UserRow } from "../context.ts";
-import { DEFAULT_SETTINGS } from "../../shared/types.ts";
+import { createSession, destroySession, hashPassword, newId, requireUser, verifyPassword } from "../auth.js";
+import { toPublicUser, type Env, type UserRow } from "../context.js";
+import { DEFAULT_SETTINGS } from "../../shared/types.js";
 
 const emailSchema = z.string().trim().toLowerCase().email().max(320);
 const passwordSchema = z.string().min(8).max(200);

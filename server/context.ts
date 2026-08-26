@@ -1,7 +1,7 @@
 import type { Context } from "hono";
-import type { Database } from "./db.ts";
-import type { UserPublic, UserSettings } from "../shared/types.ts";
-import { DEFAULT_SETTINGS } from "../shared/types.ts";
+import type { Database } from "./db.js";
+import type { UserPublic, UserSettings } from "../shared/types.js";
+import { DEFAULT_SETTINGS } from "../shared/types.js";
 
 export type Env = {
   Variables: {

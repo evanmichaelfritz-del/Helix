@@ -1,5 +1,5 @@
-import { emptyRecords } from "./empty.ts";
-import type { ParseResult } from "./result.ts";
+import { emptyRecords } from "./empty.js";
+import type { ParseResult } from "./result.js";
 
 type DayAcc = {
   loggedOn: string;

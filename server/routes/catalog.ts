@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { PEPTIDE_COLORS, PEPTIDE_UNITS } from "../../shared/types.ts";
-import { remainingInjections, runwayTone } from "../../shared/health.ts";
-import { newId, requireUser } from "../auth.ts";
-import type { Env, PeptideRow, VialRow } from "../context.ts";
-import { mapPeptide, mapVial } from "./mappers.ts";
+import { PEPTIDE_COLORS, PEPTIDE_UNITS } from "../../shared/types.js";
+import { remainingInjections, runwayTone } from "../../shared/health.js";
+import { newId, requireUser } from "../auth.js";
+import type { Env, PeptideRow, VialRow } from "../context.js";
+import { mapPeptide, mapVial } from "./mappers.js";
 
 export const peptideRoutes = new Hono<Env>();
 

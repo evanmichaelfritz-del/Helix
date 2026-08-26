@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { requireUser } from "../auth.ts";
-import { parseSettings, toPublicUser, type Env } from "../context.ts";
-import { DEFAULT_SETTINGS } from "../../shared/types.ts";
+import { requireUser } from "../auth.js";
+import { parseSettings, toPublicUser, type Env } from "../context.js";
+import { DEFAULT_SETTINGS } from "../../shared/types.js";
 
 export const meRoutes = new Hono<Env>();
 

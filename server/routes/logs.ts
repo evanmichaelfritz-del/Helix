@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { PEPTIDE_UNITS } from "../../shared/types.ts";
-import { newId, requireUser } from "../auth.ts";
-import type { DoseRow, Env, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.ts";
-import { activeDoseSql, isUndone, undoneParam } from "../dialect.ts";
-import { mapDose, mapWeighIn, mapWorkout } from "./mappers.ts";
-import { parseOn } from "./today.ts";
+import { PEPTIDE_UNITS } from "../../shared/types.js";
+import { newId, requireUser } from "../auth.js";
+import type { DoseRow, Env, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.js";
+import { activeDoseSql, isUndone, undoneParam } from "../dialect.js";
+import { mapDose, mapWeighIn, mapWorkout } from "./mappers.js";
+import { parseOn } from "./today.js";
 
 export const doseRoutes = new Hono<Env>();
 

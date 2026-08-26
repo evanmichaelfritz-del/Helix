@@ -1,4 +1,4 @@
-import type { RecoveryTone, RunwayTone, TodayHero, Vial } from "./types.ts";
+import type { RecoveryTone, RunwayTone, TodayHero, Vial } from "./types.js";
 
 export function remainingInjections(vial: Pick<Vial, "remainingAmount" | "dose">): number {
   if (vial.dose <= 0) return 0;

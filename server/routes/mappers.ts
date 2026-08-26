@@ -1,8 +1,8 @@
-import type { Dose, HealthDay, Peptide, PeptideUnit, Vial, WeighIn, Workout } from "../../shared/types.ts";
-import { parseLocalDate } from "../../shared/types.ts";
-import type { DoseRow, HealthDayRow, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.ts";
-import { num } from "../context.ts";
-import { isUndone } from "../dialect.ts";
+import type { Dose, HealthDay, Peptide, PeptideUnit, Vial, WeighIn, Workout } from "../../shared/types.js";
+import { parseLocalDate } from "../../shared/types.js";
+import type { DoseRow, HealthDayRow, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.js";
+import { num } from "../context.js";
+import { isUndone } from "../dialect.js";
 
 function unitOf(unit: string): PeptideUnit {
   if (unit === "mcg" || unit === "mg" || unit === "IU" || unit === "mL") return unit;
