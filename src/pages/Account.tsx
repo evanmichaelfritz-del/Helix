@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { ImportResult, ThemePref } from "@shared/types.ts";
-import { THEME_OPTIONS } from "@shared/theme.ts";
+import type { ImportResult } from "@shared/types.ts";
+import { parseThemePref, THEME_OPTIONS } from "@shared/theme.ts";
 import { GROK_ME } from "../lib/grok.ts";
 import { ApiError, client } from "../lib/api.ts";
 import {
@@ -70,7 +70,7 @@ export function AccountPage() {
           </div>
           <select
             value={s.theme}
-            onChange={(e) => void patch({ theme: e.target.value as ThemePref }, true)}
+            onChange={(e) => void patch({ theme: parseThemePref(e.target.value) }, true)}
           >
             {THEME_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
