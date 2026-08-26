@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { remainingInjections, runwayTone, todayHero } from "../../shared/health.js";
+import { remainingInjections, runwayTone, supportingLines, todayHero } from "../../shared/health.js";
 import { parseLocalDate, type LocalDate, type TodayPayload } from "../../shared/types.js";
 import { requireUser } from "../auth.js";
 import type { DoseRow, Env, HealthDayRow, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.js";
 import { activeDoseSql } from "../dialect.js";
-import { mapPeptide, mapVial, mapWorkout } from "./mappers.js";
+import { mapHealthDay, mapPeptide, mapVial, mapWeighIn, mapWorkout } from "./mappers.js";
 
 export const todayRoutes = new Hono<Env>();
 
@@ -34,11 +34,9 @@ export async function loadToday(opts: {
   );
 
   const weighIns = await db.all<WeighInRow>(
-    "SELECT * FROM weigh_ins WHERE user_id = ? AND logged_on <= ? ORDER BY logged_on DESC LIMIT 2",
+    "SELECT * FROM weigh_ins WHERE user_id = ? AND logged_on <= ? ORDER BY logged_on ASC",
     [userId, on],
   );
-  const currentWeigh = weighIns[0];
-  const prevWeigh = weighIns[1];
 
   const workouts = await db.all<WorkoutRow>(
     "SELECT * FROM workouts WHERE user_id = ? AND logged_on = ? ORDER BY created_at ASC",
@@ -58,24 +56,15 @@ export async function loadToday(opts: {
     [userId, on],
   );
 
+  const day = healthDay ? mapHealthDay(healthDay) : null;
+  const mappedWeighIns = weighIns.map(mapWeighIn);
+  const hero = todayHero(day);
   return {
     on,
-    hero: todayHero(
-      healthDay
-        ? {
-            whoopRecovery: healthDay.whoop_recovery,
-            garminBodyBattery: healthDay.garmin_body_battery,
-            sleepHours: healthDay.sleep_hours,
-          }
-        : null,
-    ),
-    supporting: {
-      sleepHours: healthDay?.sleep_hours ?? null,
-      strain: healthDay?.strain ?? null,
-      steps: healthDay?.steps ?? null,
-      weightKg: currentWeigh?.kg ?? null,
-      weightDeltaKg: currentWeigh && prevWeigh ? currentWeigh.kg - prevWeigh.kg : null,
-    },
+    day,
+    weighIns: mappedWeighIns,
+    hero,
+    supporting: supportingLines(day, mappedWeighIns, hero),
     protocol: nextProtocol({ peptides, vials, dosesToday }),
     workouts: workouts.map(mapWorkout),
   };

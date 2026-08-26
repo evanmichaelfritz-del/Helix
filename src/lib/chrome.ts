@@ -1,15 +1,55 @@
 import type { ThemePref } from "@shared/types.ts";
+import {
+  HELIX_THEME_KEY,
+  isDarkTheme,
+  parseThemePref,
+  themeColor,
+} from "@shared/theme.ts";
+
+declare global {
+  interface Window {
+    __HELIX_THEME_BOOTED?: boolean;
+  }
+}
+
+export function themeBooted(): boolean {
+  return typeof window !== "undefined" && window.__HELIX_THEME_BOOTED === true;
+}
+
+export function readStoredTheme(): ThemePref {
+  try {
+    return parseThemePref(localStorage.getItem(HELIX_THEME_KEY));
+  } catch {
+    return "system";
+  }
+}
+
+export function persistHelixTheme(theme: ThemePref): void {
+  if (!themeBooted()) return;
+  localStorage.setItem(HELIX_THEME_KEY, theme);
+}
 
 export function applyChrome(opts: { theme: ThemePref; reduceEffects: boolean }): void {
   const root = document.documentElement;
-  const dark =
-    opts.theme === "dark" ||
-    (opts.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-  root.dataset.theme = dark ? "dark" : "light";
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const dark = isDarkTheme(opts.theme, prefersDark);
+  root.classList.toggle("light", !dark);
   root.classList.toggle("reduce-effects", opts.reduceEffects);
-  const themeColor = dark ? "#0c0d11" : "#efece4";
+  delete root.dataset.theme;
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", themeColor);
+  if (meta) meta.setAttribute("content", themeColor(dark));
+}
+
+export function watchSystemTheme(
+  getOpts: () => { theme: ThemePref; reduceEffects: boolean },
+): () => void {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const onChange = () => {
+    const opts = getOpts();
+    if (opts.theme === "system") applyChrome(opts);
+  };
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
 }
 
 const KEY = (userId: string) => `helix:faceId:${userId}`;

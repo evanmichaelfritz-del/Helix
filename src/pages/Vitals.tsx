@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { HealthDay, WeighIn, Workout } from "@shared/types.ts";
+import { useLocation } from "react-router-dom";
+import type { HealthDay, ImportResult, WeighIn, Workout } from "@shared/types.ts";
 import { parseImportFile } from "@shared/import/index.ts";
 import { ApiError, client } from "../lib/api.ts";
 import { formatWeight, hoursLabel } from "../lib/format.ts";
@@ -7,10 +8,12 @@ import { useAppState } from "../lib/state.tsx";
 
 export function VitalsPage() {
   const { gen, bump, user } = useAppState();
+  const location = useLocation();
   const [days, setDays] = useState<HealthDay[]>([]);
   const [weighIns, setWeighIns] = useState<WeighIn[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
+  const [imported, setImported] = useState<ImportResult | null>(null);
   const unit = user?.settings.weightUnit ?? "kg";
 
   useEffect(() => {
@@ -23,6 +26,11 @@ export function VitalsPage() {
       })
       .catch(() => undefined);
   }, [gen]);
+
+  useEffect(() => {
+    if (location.hash !== "#sources") return;
+    document.querySelector("[data-helix-scroll]")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [location.hash, days.length]);
 
   const series = useMemo(() => trendSeries(days), [days]);
   const weights = weighIns.slice(-14).map((w) => w.kg);
@@ -38,11 +46,11 @@ export function VitalsPage() {
               {series.latest}
               {series.unit}
             </div>
-            <Spark values={series.values} />
+            <Liveline values={series.values} />
           </>
         ) : (
           <p className="muted" style={{ marginTop: 16 }}>
-            No imported days yet. Drop a file below.
+            No imported days yet. Pick a file below.
           </p>
         )}
       </article>
@@ -53,7 +61,7 @@ export function VitalsPage() {
           <div className="hero-value" style={{ fontSize: 36 }}>
             {formatWeight(weights[weights.length - 1], unit)}
           </div>
-          <Spark values={weights} />
+          <Liveline values={weights} />
         </article>
       ) : null}
 
@@ -71,17 +79,44 @@ export function VitalsPage() {
         </div>
       ) : null}
 
-      <section className="section" id="sources">
+      <section className="section" id="sources" data-helix-scroll>
         <p className="kicker" style={{ marginBottom: 10 }}>
-          File import
+          Sources
         </p>
-        <ImportDrop
-          onDone={(text) => {
-            setMsg(text);
-            bump();
-          }}
-        />
-        {msg ? <p className="muted" style={{ marginTop: 10 }}>{msg}</p> : null}
+        <div className="pickers">
+          <FilePicker
+            label="Whoop CSV"
+            hint="Physiological cycles export, or a zip that contains it."
+            accept=".csv,.zip"
+            onImported={(result, text) => {
+              setImported(result);
+              setMsg(text);
+              bump();
+            }}
+          />
+          <FilePicker
+            label="Garmin JSON dailies zip"
+            hint="Connect full data export. Activities CSV is rejected."
+            accept=".zip,.json"
+            onImported={(result, text) => {
+              setImported(result);
+              setMsg(text);
+              bump();
+            }}
+          />
+          <FilePicker
+            label="Apple Health export"
+            hint="export.xml or the zip that contains it."
+            accept=".zip,.xml"
+            onImported={(result, text) => {
+              setImported(result);
+              setMsg(text);
+              bump();
+            }}
+          />
+        </div>
+        {imported ? <ImportedCounts result={imported} /> : null}
+        {msg && !imported ? <p className="muted" style={{ marginTop: 10 }}>{msg}</p> : null}
       </section>
     </>
   );
@@ -129,7 +164,7 @@ function trendSeries(days: HealthDay[]): {
   return { label: "Trend", values: [], latest: "", unit: "" };
 }
 
-function Spark({ values }: { values: number[] }) {
+function Liveline({ values }: { values: number[] }) {
   if (values.length < 2) return null;
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -139,16 +174,35 @@ function Spark({ values }: { values: number[] }) {
   const pts = values.map((v, i) => {
     const x = (i / (values.length - 1)) * (w - 8) + 4;
     const y = h - 8 - ((v - min) / span) * (h - 16);
-    return `${x},${y}`;
+    return { x, y };
   });
+  const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
+  const area = `4,${h - 4} ${line} ${w - 4},${h - 4}`;
   return (
-    <svg className="spark" viewBox={`0 0 ${w} ${h}`} aria-hidden>
-      <polyline fill="none" stroke="currentColor" strokeWidth="2.4" points={pts.join(" ")} />
+    <svg className="liveline" viewBox={`0 0 ${w} ${h}`} aria-hidden>
+      <polygon className="liveline-fill" points={area} />
+      <polyline className="liveline-stroke" points={line} />
     </svg>
   );
 }
 
-export function ImportDrop({ onDone }: { onDone: (message: string) => void }) {
+export function ImportedCounts({ result }: { result: ImportResult }) {
+  return (
+    <p className="import-counts">
+      Imported {result.healthDays} days, {result.weighIns} weigh-ins, {result.workouts} workouts
+      {result.peptides ? `, ${result.peptides} peptides` : ""}
+      {result.vials ? `, ${result.vials} vials` : ""}
+      {result.doses ? `, ${result.doses} doses` : ""}.
+    </p>
+  );
+}
+
+export function FilePicker(props: {
+  label: string;
+  hint: string;
+  accept: string;
+  onImported: (result: ImportResult | null, message: string) => void;
+}) {
   const [busy, setBusy] = useState(false);
   async function handle(file: File) {
     setBusy(true);
@@ -156,17 +210,18 @@ export function ImportDrop({ onDone }: { onDone: (message: string) => void }) {
       const buffer = await file.arrayBuffer();
       const parsed = await parseImportFile({ name: file.name, type: file.type, buffer });
       if (parsed.kind === "error") {
-        onDone(parsed.error);
+        props.onImported(null, parsed.error);
         return;
       }
       const result = await client.importRecords(parsed.records);
-      onDone(
+      props.onImported(
+        result,
         `Imported ${result.healthDays} days, ${result.weighIns} weigh-ins, ${result.workouts} workouts${
           result.peptides ? `, ${result.peptides} peptides` : ""
         }.`,
       );
     } catch (err) {
-      onDone(err instanceof ApiError ? err.message : "Import failed.");
+      props.onImported(null, err instanceof ApiError ? err.message : "Import failed.");
     } finally {
       setBusy(false);
     }
@@ -175,7 +230,7 @@ export function ImportDrop({ onDone }: { onDone: (message: string) => void }) {
     <label className="drop">
       <input
         type="file"
-        accept=".zip,.json,.csv,.xml"
+        accept={props.accept}
         disabled={busy}
         onChange={(e) => {
           const file = e.target.files?.[0];
@@ -183,7 +238,8 @@ export function ImportDrop({ onDone }: { onDone: (message: string) => void }) {
           e.target.value = "";
         }}
       />
-      {busy ? "Reading…" : "Drop Whoop CSV, Garmin JSON dailies zip, Apple Health export, or Helix helper JSON"}
+      <strong>{props.label}</strong>
+      <span>{busy ? "Reading…" : props.hint}</span>
     </label>
   );
 }

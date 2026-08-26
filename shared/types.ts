@@ -113,6 +113,7 @@ export type HealthDay = {
   strain: number | null;
   steps: number | null;
   source: string | null;
+  sleepPerf?: number | null;
 };
 
 export type Workout = {
@@ -160,6 +161,8 @@ export type TodayHero =
 
 export type TodayPayload = {
   on: LocalDate;
+  day: HealthDay | null;
+  weighIns: WeighIn[];
   hero: TodayHero;
   supporting: TodaySupporting;
   protocol: TodayProtocol;

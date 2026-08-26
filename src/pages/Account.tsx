@@ -1,24 +1,33 @@
 import { useState } from "react";
+import type { ImportResult, ThemePref } from "@shared/types.ts";
+import { THEME_OPTIONS } from "@shared/theme.ts";
 import { GROK_ME } from "../lib/grok.ts";
 import { ApiError, client } from "../lib/api.ts";
 import {
   applyChrome,
   clearFaceId,
   faceIdAvailable,
+  persistHelixTheme,
   registerFaceId,
   storedCredentialId,
+  themeBooted,
 } from "../lib/chrome.ts";
 import { useAppState } from "../lib/state.tsx";
-import { ImportDrop } from "./Vitals.tsx";
+import { FilePicker, ImportedCounts } from "./Vitals.tsx";
 
 export function AccountPage() {
-  const { user, setUser } = useAppState();
+  const { user, setUser, bump } = useAppState();
   const [msg, setMsg] = useState<string | null>(null);
+  const [imported, setImported] = useState<ImportResult | null>(null);
   if (!user) return null;
   const s = user.settings;
 
-  async function patch(partial: Partial<typeof s>) {
+  async function patch(partial: Partial<typeof s>, persistTheme = false) {
     const next = { ...s, ...partial };
+    if (persistTheme && partial.theme) {
+      if (!themeBooted()) return;
+      persistHelixTheme(partial.theme);
+    }
     applyChrome(next);
     const res = await client.patchMe({ settings: next });
     setUser(res.user);
@@ -57,15 +66,17 @@ export function AccountPage() {
         <div className="toggle">
           <div>
             <strong>Theme</strong>
-            <div className="muted">System, light, or dark</div>
+            <div className="muted">Follow system, light, or dark</div>
           </div>
           <select
             value={s.theme}
-            onChange={(e) => void patch({ theme: e.target.value as typeof s.theme })}
+            onChange={(e) => void patch({ theme: e.target.value as ThemePref }, true)}
           >
-            <option value="system">System</option>
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
+            {THEME_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
         </div>
         <div className="toggle">
@@ -111,26 +122,32 @@ export function AccountPage() {
         </div>
       </article>
 
-      <section className="section" id="sources">
+      <section className="section">
         <p className="kicker" style={{ marginBottom: 10 }}>
-          Sources
+          grok.me
         </p>
         <article className="card" style={{ padding: 18 }}>
           <p className="muted">
-            Whoop, Garmin, and Apple Health import from files on Vitals. Garmin body battery needs
-            the JSON dailies zip, not Connect Activities CSV.
+            Continue on grok.me, then drop the helper JSON here. Wearable files go on Vitals.
+            Helix never fetches helix-peptides.grok.me RPCs and does not migrate by email.
           </p>
-          <a className="btn" style={{ marginTop: 14, textDecoration: "none" }} href={GROK_ME} target="_blank" rel="noreferrer">
+          <a className="btn" style={{ marginTop: 14 }} href={GROK_ME} target="_blank" rel="noreferrer">
             Continue on grok.me
           </a>
-          <p className="muted" style={{ marginTop: 14 }}>
-            Import from grok.me is a helper-JSON drop. Helix never fetches helix-peptides.grok.me
-            RPCs and does not migrate by email.
-          </p>
           <div style={{ marginTop: 12 }}>
-            <ImportDrop onDone={setMsg} />
+            <FilePicker
+              label="Helix helper JSON"
+              hint="Drop the grok.me helper JSON. Token paste is rejected."
+              accept=".json,.zip"
+              onImported={(result, text) => {
+                setImported(result);
+                setMsg(text);
+                if (result) bump();
+              }}
+            />
           </div>
-          {msg ? <p className="muted" style={{ marginTop: 10 }}>{msg}</p> : null}
+          {imported ? <ImportedCounts result={imported} /> : null}
+          {msg && !imported ? <p className="muted" style={{ marginTop: 10 }}>{msg}</p> : null}
         </article>
       </section>
 

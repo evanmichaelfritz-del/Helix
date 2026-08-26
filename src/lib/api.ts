@@ -97,6 +97,8 @@ export const client = {
       workouts: import("@shared/types.ts").Workout[];
     }>(`/api/health${s ? `?${s}` : ""}`);
   },
+  workouts: (on?: string) =>
+    api<{ workouts: import("@shared/types.ts").Workout[] }>(`/api/workouts${on ? `?on=${on}` : ""}`),
   importRecords: (body: import("@shared/types.ts").ImportRecords) =>
     api<import("@shared/types.ts").ImportResult>("/api/import/records", { method: "POST", json: body }),
 };

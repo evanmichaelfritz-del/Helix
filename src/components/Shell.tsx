@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import type { ReactNode } from "react";
+import { cn } from "@shared/cn.ts";
 import { BrandMark, IconCal, IconProtocol, IconToday, IconVitals, IconYou } from "./icons.tsx";
 
 const tabs = [
@@ -28,7 +29,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <IconCal />
             Calendar
           </NavLink>
-          <NavLink to="/account#sources">
+          <NavLink to="/health#sources">
             <IconVitals />
             Sources
           </NavLink>
@@ -47,19 +48,25 @@ export function Shell({ children }: { children: ReactNode }) {
           </NavLink>
         ))}
       </nav>
-      <main className="page">{children}</main>
+      <main className="helix-main" id="helix-main">
+        {children}
+      </main>
     </div>
   );
 }
 
-export function Runway(props: {
+export function VialRunway(props: {
   remaining: number | null;
   tone: "ok" | "amber" | "red" | null;
+  tiny?: boolean;
 }) {
   if (props.remaining == null) return null;
   const n = Math.min(8, Math.max(0, props.remaining));
   return (
-    <div className={`runway ${props.tone ?? "ok"}`} title={`${props.remaining} left`}>
+    <div
+      className={cn("vial-runway", props.tiny && "tiny", props.tone)}
+      title={`${props.remaining} left`}
+    >
       {Array.from({ length: 8 }, (_, i) => (
         <i key={i} className={i < n ? "on" : undefined} />
       ))}
@@ -68,6 +75,9 @@ export function Runway(props: {
   );
 }
 
-export function Swatch({ color }: { color: string }) {
-  return <span className="swatch" style={{ background: color }} />;
+export function PeptideSwatch({ color }: { color: string }) {
+  return <span className={cn("peptide-swatch")} style={{ background: color }} />;
 }
+
+export const Runway = VialRunway;
+export const Swatch = PeptideSwatch;
