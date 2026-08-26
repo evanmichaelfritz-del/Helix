@@ -1,0 +1,97 @@
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+import { neon } from "@neondatabase/serverless";
+import { SCHEMA_STATEMENTS } from "./schema.ts";
+
+export type SqlValue = string | number | null | bigint | boolean;
+
+export type Database = {
+  dialect: "sqlite" | "postgres";
+  all: <T>(sql: string, params?: SqlValue[]) => Promise<T[]>;
+  get: <T>(sql: string, params?: SqlValue[]) => Promise<T | undefined>;
+  run: (sql: string, params?: SqlValue[]) => Promise<{ changes: number }>;
+};
+
+export function isPostgresUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  return url.startsWith("postgres://") || url.startsWith("postgresql://");
+}
+
+export async function connectDb(url = process.env.DATABASE_URL): Promise<Database> {
+  if (process.env.VERCEL && !isPostgresUrl(url)) {
+    throw new Error(
+      "Vercel requires DATABASE_URL pointing at Neon Postgres (postgres:// or postgresql://).",
+    );
+  }
+  if (isPostgresUrl(url) && url) {
+    return createNeonDb(url);
+  }
+  const fileUrl = url && url.startsWith("file:") ? url : "file:data/helix.db";
+  return createSqliteDb(fileUrl);
+}
+
+export async function migrate(db: Database): Promise<void> {
+  for (const statement of SCHEMA_STATEMENTS) {
+    await db.run(statement);
+  }
+}
+
+function toPg(sql: string): string {
+  let n = 0;
+  return sql.replace(/\?/g, () => `$${++n}`);
+}
+
+function createNeonDb(url: string): Database {
+  const sql = neon(url);
+  return {
+    dialect: "postgres",
+    async all<T>(query: string, params: SqlValue[] = []) {
+      const rows = await sql.query(toPg(query), params);
+      return rows as T[];
+    },
+    async get<T>(query: string, params: SqlValue[] = []) {
+      const rows = await sql.query(toPg(query), params);
+      return (rows as T[])[0];
+    },
+    async run(query: string, params: SqlValue[] = []) {
+      await sql.query(toPg(query), params);
+      return { changes: 0 };
+    },
+  };
+}
+
+export async function createSqliteDb(url: string): Promise<Database> {
+  const { createClient } = await import("@libsql/client");
+  const memory = url === ":memory:" || url === "file::memory:";
+  if (!memory && url.startsWith("file:")) {
+    const filePath = url.slice("file:".length);
+    const dir = path.dirname(filePath);
+    if (dir && dir !== ".") await mkdir(dir, { recursive: true });
+  }
+  const client = createClient({ url: memory ? ":memory:" : url });
+  await client.execute("PRAGMA foreign_keys = ON");
+  await client.execute("PRAGMA journal_mode = WAL");
+  return {
+    dialect: "sqlite",
+    async all<T>(query: string, params: SqlValue[] = []) {
+      const result = await client.execute({ sql: query, args: params });
+      return result.rows as unknown as T[];
+    },
+    async get<T>(query: string, params: SqlValue[] = []) {
+      const result = await client.execute({ sql: query, args: params });
+      return result.rows[0] as unknown as T | undefined;
+    },
+    async run(query: string, params: SqlValue[] = []) {
+      const result = await client.execute({ sql: query, args: params });
+      return { changes: result.rowsAffected };
+    },
+  };
+}
+
+const migrated = new WeakSet<Database>();
+
+export async function ensureMigrated(db: Database): Promise<void> {
+  if (migrated.has(db)) return;
+  await migrate(db);
+  migrated.add(db);
+}

@@ -1,0 +1,10 @@
+node_modules
+dist
+dev-dist
+data
+.env
+.env.local
+*.db
+*.db-journal
+.vercel
+.DS_Store
