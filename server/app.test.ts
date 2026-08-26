@@ -193,6 +193,15 @@ describe("import parsers", () => {
   });
 });
 
+describe("healthz", () => {
+  it("returns { ok: true }", async () => {
+    const app = await testApp();
+    const res = await app.request("/api/healthz");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+  });
+});
+
 describe("vercel hobby function cap", () => {
   it("leaves only api/index.ts as a serverless function", () => {
     const files = globSync("api/**/*.{ts,js,mjs,cjs}").filter((file) => {
@@ -200,6 +209,17 @@ describe("vercel hobby function cap", () => {
       return !name.startsWith("_") && !name.startsWith(".") && !name.endsWith(".d.ts");
     });
     expect(files).toEqual(["api/index.ts"]);
+  });
+});
+
+describe("vercel node function signature", () => {
+  it("exports named HTTP methods, not a default fetch handler", () => {
+    const text = readFileSync("api/index.ts", "utf8");
+    expect(text).not.toMatch(/export default handle\s*\(/);
+    expect(text).not.toMatch(/export default\s+(async\s+)?function/);
+    for (const method of ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]) {
+      expect(text).toMatch(new RegExp(`export const ${method}\\s*=`));
+    }
   });
 });
 

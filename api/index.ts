@@ -10,4 +10,11 @@ export const config = {
   maxDuration: 10,
 };
 
-export default handle(app);
+// Node treats a default-export function as (req, res) => void and ignores a returned Response.
+const handler = handle(app);
+export const GET = handler;
+export const POST = handler;
+export const PUT = handler;
+export const PATCH = handler;
+export const DELETE = handler;
+export const OPTIONS = handler;
