@@ -46,11 +46,39 @@ describe("today hero matching", () => {
       }),
     });
 
+    await app.request("/api/import/records", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        source: "helix",
+        healthDays: [],
+        workouts: [
+          { loggedOn: "2026-08-25", name: "Yesterday run" },
+          { loggedOn: "2026-08-26", name: "Today bike" },
+        ],
+        weighIns: [
+          { loggedOn: "2026-08-25", kg: 83 },
+          { loggedOn: "2026-08-26", kg: 82.4 },
+        ],
+      }),
+    });
+
     const today = await app.request("/api/today?on=2026-08-26", { headers });
-    const body = (await today.json()) as { hero: { kind: string; recovery?: number; tone?: string } };
+    const body = (await today.json()) as {
+      hero: { kind: string; recovery?: number; tone?: string };
+      day: { loggedOn: string; whoopRecovery: number } | null;
+      weighIns: Array<{ kg: number; loggedOn: string }>;
+      supporting: { weightKg: number | null; weightDeltaKg: number | null };
+      workouts: Array<{ name: string; loggedOn: string }>;
+    };
     expect(body.hero.kind).toBe("whoop");
     expect(body.hero.recovery).toBe(40);
     expect(body.hero.tone).toBe("amber");
+    expect(body.day?.loggedOn).toBe("2026-08-26");
+    expect(body.day?.whoopRecovery).toBe(40);
+    expect(body.supporting.weightKg).toBe(82.4);
+    expect(body.supporting.weightDeltaKg).toBeCloseTo(-0.6);
+    expect(body.workouts.map((w) => w.name)).toEqual(["Today bike"]);
   });
 });
 
@@ -247,5 +275,64 @@ describe("no grok.me RPC client", () => {
       if (/from\s+["']@tanstack\/start["']/.test(text)) hits.push(file);
     }
     expect(hits).toEqual([]);
+  });
+});
+
+describe("design scaffold locks", () => {
+  it("boots helix-theme onto html.light and keeps dark as :root", () => {
+    const html = readFileSync("index.html", "utf8");
+    expect(html).toMatch(/helix-theme/);
+    expect(html).toMatch(/#1c1c1e/);
+    expect(html).toMatch(/#e7e8ee/);
+    expect(html).toMatch(/__HELIX_THEME_BOOTED/);
+    const css = readFileSync("src/styles.css", "utf8");
+    expect(css).toMatch(/html\.light/);
+    expect(css).not.toMatch(/\[data-theme="light"\]/);
+    expect(css).toMatch(/--bg-elevated/);
+    expect(css).toMatch(/--border-strong/);
+    expect(css).toMatch(/--accent-fg/);
+    expect(css).toMatch(/--glass-chrome-highlight/);
+    expect(css).toMatch(/--ring/);
+    expect(css).toMatch(/--primary-fg/);
+    expect(css).toMatch(/#1414181a/);
+    expect(css).not.toMatch(/\.page\s*\{[^}]*padding:\s*88px 16px 168px/);
+    expect(css).toMatch(/\.helix-main/);
+  });
+
+  it("keeps the FAB visible at desktop widths", () => {
+    const css = readFileSync("src/styles.css", "utf8");
+    expect(css).not.toMatch(/@media \(min-width:\s*768px\)\s*\{[^}]*\.fab[^{]*\{[^}]*display:\s*none/);
+    expect(css).not.toMatch(/@media \(min-width:\s*768px\)\s*\{[^}]*\.fab-wrap[^{]*\{[^}]*display:\s*none/);
+  });
+
+  it("maps locked Today / You / Vitals copy onto this tree", () => {
+    const today = readFileSync("src/pages/Today.tsx", "utf8");
+    const you = readFileSync("src/pages/Account.tsx", "utf8");
+    const vitals = readFileSync("src/pages/Vitals.tsx", "utf8");
+    const shell = readFileSync("src/components/Shell.tsx", "utf8");
+    expect(today).toMatch(/EMPTY_HERO_TITLE/);
+    expect(readFileSync("shared/health.ts", "utf8")).toMatch(/No reading yet/);
+    expect(today).toMatch(/\/health#sources/);
+    expect(today).not.toMatch(/helix-peptides\.grok\.me/);
+    expect(today).not.toMatch(/Import Whoop/);
+    expect(today).toMatch(/supportingLines/);
+    expect(today).toMatch(/pickTodayHero/);
+    expect(today).toMatch(/Log dose/);
+    expect(today).toMatch(/Log weight/);
+    expect(today).not.toMatch(/openSheet\(\{ kind: "add-peptide" \}\)/);
+    expect(you).toMatch(/Follow system/);
+    expect(you).toMatch(/Continue on grok.me/);
+    expect(you).toMatch(/ImportedCounts/);
+    expect(vitals).toMatch(/data-helix-scroll/);
+    expect(vitals).toMatch(/Garmin JSON dailies zip/);
+    expect(vitals).toMatch(/Whoop CSV/);
+    expect(vitals).toMatch(/Apple Health export/);
+    expect(vitals).toMatch(/function Liveline/);
+    expect(shell).toMatch(/helix-main/);
+    expect(shell).toMatch(/vial-runway/);
+    expect(shell).toMatch(/peptide-swatch/);
+    expect(today).not.toMatch(/sleepPerf/);
+    expect(vitals).not.toMatch(/sleepPerf/);
+    expect(you).not.toMatch(/sleepPerf/);
   });
 });

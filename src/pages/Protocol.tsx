@@ -5,7 +5,7 @@ import { remainingInjections, runwayTone } from "@shared/health.ts";
 import { todayLocal } from "@shared/types.ts";
 import { client } from "../lib/api.ts";
 import { useAppState } from "../lib/state.tsx";
-import { Runway, Swatch } from "../components/Shell.tsx";
+import { PeptideSwatch, VialRunway } from "../components/Shell.tsx";
 
 export function ProtocolLayout() {
   return (
@@ -66,7 +66,7 @@ export function ProtocolHome() {
     <article className="card protocol-hero">
       <p className="kicker">Next dose</p>
       <div style={{ display: "flex", gap: 14, alignItems: "center", marginTop: 12 }}>
-        <Swatch color={peptide.color} />
+        <PeptideSwatch color={peptide.color} />
         <div>
           <div className="hero-value" style={{ fontSize: 40, margin: 0 }}>
             {amount} <span style={{ fontSize: 18 }}>{peptide.unit}</span>
@@ -79,7 +79,7 @@ export function ProtocolHome() {
       {vial ? (
         <div style={{ marginTop: 16 }}>
           <p className="muted">{vial.label || "Current vial"}</p>
-          <Runway remaining={remaining} tone={remaining == null ? null : runwayTone(remaining)} />
+          <VialRunway remaining={remaining} tone={remaining == null ? null : runwayTone(remaining)} />
         </div>
       ) : (
         <button className="btn ghost" style={{ marginTop: 16 }} type="button" onClick={() => openSheet({ kind: "add-vial", peptideId: peptide.id })}>
@@ -116,7 +116,7 @@ export function PeptidesPage() {
       <div className="list">
         {peptides.map((p: Peptide) => (
           <div className="card list-row" key={p.id}>
-            <Swatch color={p.color} />
+            <PeptideSwatch color={p.color} />
             <div className="meta">
               <strong>{p.name}</strong>
               <div className="muted">
@@ -151,12 +151,12 @@ export function VialsPage() {
           const peptide = peptides.find((p) => p.id === v.peptideId);
           return (
             <div className="card list-row" key={v.id}>
-              {peptide ? <Swatch color={peptide.color} /> : null}
+              {peptide ? <PeptideSwatch color={peptide.color} /> : null}
               <div className="meta" style={{ flex: 1 }}>
                 <strong>{peptide?.name ?? "Vial"}</strong>
                 <div className="muted">{v.label || `${v.remainingAmount} remaining`}</div>
               </div>
-              <Runway remaining={v.remainingInjections} tone={v.runwayTone} />
+              <VialRunway remaining={v.remainingInjections} tone={v.runwayTone} />
             </div>
           );
         })}
@@ -183,7 +183,7 @@ export function DoseLogPage() {
         const p = peptides.find((x) => x.id === d.peptideId);
         return (
           <div className="card list-row" key={d.id}>
-            {p ? <Swatch color={p.color} /> : null}
+            {p ? <PeptideSwatch color={p.color} /> : null}
             <div className="meta">
               <strong>
                 {d.amount} {d.unit} {p?.name ?? ""}

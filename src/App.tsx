@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Route, Routes } from "react-router-dom";
-import { applyChrome, storedCredentialId, unlockFaceId } from "./lib/chrome.ts";
+import { applyChrome, persistHelixTheme, storedCredentialId, unlockFaceId, watchSystemTheme } from "./lib/chrome.ts";
 import { ApiError, client } from "./lib/api.ts";
 import { AppStateProvider, useAppState } from "./lib/state.tsx";
 import { Shell } from "./components/Shell.tsx";
@@ -31,6 +31,7 @@ function Root() {
       .then((r) => {
         setUser(r.user);
         applyChrome(r.user.settings);
+        persistHelixTheme(r.user.settings.theme);
         const need =
           r.user.settings.faceId &&
           Boolean(storedCredentialId(r.user.id)) &&
@@ -47,7 +48,18 @@ function Root() {
   }, [setUser]);
 
   useEffect(() => {
-    if (user) applyChrome(user.settings);
+    if (user) {
+      applyChrome(user.settings);
+      persistHelixTheme(user.settings.theme);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    return watchSystemTheme(() => ({
+      theme: user.settings.theme,
+      reduceEffects: user.settings.reduceEffects,
+    }));
   }, [user]);
 
   if (!ready) {
