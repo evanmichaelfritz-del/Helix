@@ -368,7 +368,7 @@ describe("import records batch", () => {
     expect(text).toMatch(/FROM vials v/);
     expect(text).not.toMatch(/\bCOPY\b/);
     expect(text).not.toMatch(/SELECT id FROM doses WHERE user_id = \? AND peptide_id/);
-    expect(text).not.toMatch(/ON CONFLICT.*vials/s);
+    expect(text).not.toMatch(/INSERT INTO vials[\s\S]*ON CONFLICT/);
     expect(db).toMatch(/sql\.transaction/);
     expect(db).not.toMatch(/\bnew Pool\b/);
     expect(db).not.toMatch(/\bnew Client\b/);
