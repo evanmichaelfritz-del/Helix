@@ -179,8 +179,6 @@ html.reduce-effects {
   font-size: 13px;
   color: var(--text);
 }
-.support .delta.up { color: var(--green); }
-.support .delta.down { color: var(--red); }
 
 .protocol-mini {
   display: flex;
