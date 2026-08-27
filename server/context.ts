@@ -28,6 +28,8 @@ export type PeptideRow = {
   unit: string;
   color: string;
   last_amount: number | null;
+  body_effect?: string | null;
+  expected_results?: string | null;
   created_at: string;
 };
 
@@ -40,6 +42,9 @@ export type VialRow = {
   remaining_amount: number;
   dose: number;
   opened_on: string | null;
+  bac_ml?: number | null;
+  mixed_on?: string | null;
+  syringe_units?: number | null;
   created_at: string;
 };
 

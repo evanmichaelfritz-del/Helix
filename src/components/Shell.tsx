@@ -3,10 +3,18 @@ import type { ReactNode } from "react";
 import { cn } from "@shared/cn.ts";
 import { BrandMark, IconCal, IconProtocol, IconToday, IconVitals, IconYou } from "./icons.tsx";
 
-const tabs = [
+const dock = [
   { to: "/", label: "Today", icon: <IconToday />, end: true },
   { to: "/health", label: "Vitals", icon: <IconVitals /> },
   { to: "/protocol", label: "Protocol", icon: <IconProtocol /> },
+  { to: "/account", label: "You", icon: <IconYou /> },
+] as const;
+
+const rail = [
+  { to: "/", label: "Today", icon: <IconToday />, end: true },
+  { to: "/health", label: "Vitals", icon: <IconVitals /> },
+  { to: "/protocol", label: "Protocol", icon: <IconProtocol /> },
+  { to: "/calendar", label: "Calendar", icon: <IconCal /> },
   { to: "/account", label: "You", icon: <IconYou /> },
 ] as const;
 
@@ -18,17 +26,13 @@ export function Shell({ children }: { children: ReactNode }) {
           <BrandMark />
           Helix
         </div>
-        {tabs.map((t) => (
+        {rail.map((t) => (
           <NavLink key={t.to} to={t.to} end={"end" in t ? t.end : false}>
             {t.icon}
             {t.label}
           </NavLink>
         ))}
         <div className="sub">
-          <NavLink to="/calendar">
-            <IconCal />
-            Calendar
-          </NavLink>
           <NavLink to="/health#sources">
             <IconVitals />
             Sources
@@ -36,7 +40,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
       </nav>
       <nav className="dock chrome" aria-label="Primary">
-        {tabs.map((t) => (
+        {dock.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}

@@ -19,6 +19,8 @@ export const SQLITE_SCHEMA = [
     unit TEXT NOT NULL,
     color TEXT NOT NULL,
     last_amount REAL,
+    body_effect TEXT,
+    expected_results TEXT,
     created_at TEXT NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS vials (
@@ -30,6 +32,9 @@ export const SQLITE_SCHEMA = [
     remaining_amount REAL NOT NULL,
     dose REAL NOT NULL,
     opened_on TEXT,
+    bac_ml REAL,
+    mixed_on TEXT,
+    syringe_units INTEGER NOT NULL DEFAULT 100,
     created_at TEXT NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS doses (
@@ -131,6 +136,8 @@ export const POSTGRES_SCHEMA = [
     unit text NOT NULL,
     color text NOT NULL,
     last_amount double precision,
+    body_effect text,
+    expected_results text,
     created_at timestamptz NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS vials (
@@ -142,6 +149,9 @@ export const POSTGRES_SCHEMA = [
     remaining_amount double precision NOT NULL,
     dose double precision NOT NULL,
     opened_on text,
+    bac_ml double precision,
+    mixed_on text,
+    syringe_units integer NOT NULL DEFAULT 100,
     created_at timestamptz NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS doses (
@@ -191,6 +201,11 @@ export const POSTGRES_SCHEMA = [
   `CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id)`,
   `ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`,
   `ALTER TABLE users ALTER COLUMN email DROP NOT NULL`,
+  `ALTER TABLE peptides ADD COLUMN IF NOT EXISTS body_effect text`,
+  `ALTER TABLE peptides ADD COLUMN IF NOT EXISTS expected_results text`,
+  `ALTER TABLE vials ADD COLUMN IF NOT EXISTS bac_ml double precision`,
+  `ALTER TABLE vials ADD COLUMN IF NOT EXISTS mixed_on text`,
+  `ALTER TABLE vials ADD COLUMN IF NOT EXISTS syringe_units integer NOT NULL DEFAULT 100`,
   `CREATE TABLE IF NOT EXISTS identities (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -226,4 +241,27 @@ export const POSTGRES_SCHEMA = [
 
 export function schemaFor(dialect: "sqlite" | "postgres"): string[] {
   return dialect === "postgres" ? POSTGRES_SCHEMA : SQLITE_SCHEMA;
+}
+
+type ColumnDb = {
+  dialect: "sqlite" | "postgres";
+  all: <T>(sql: string, params?: Array<string | number | null | bigint | boolean>) => Promise<T[]>;
+  exec: (sql: string) => Promise<void>;
+};
+
+const sqliteAlters: Array<{ table: string; name: string; ddl: string }> = [
+  { table: "peptides", name: "body_effect", ddl: "body_effect TEXT" },
+  { table: "peptides", name: "expected_results", ddl: "expected_results TEXT" },
+  { table: "vials", name: "bac_ml", ddl: "bac_ml REAL" },
+  { table: "vials", name: "mixed_on", ddl: "mixed_on TEXT" },
+  { table: "vials", name: "syringe_units", ddl: "syringe_units INTEGER NOT NULL DEFAULT 100" },
+];
+
+export async function ensureMixColumns(db: ColumnDb): Promise<void> {
+  if (db.dialect !== "sqlite") return;
+  for (const col of sqliteAlters) {
+    const cols = await db.all<{ name: string }>(`PRAGMA table_info(${col.table})`);
+    if (cols.some((row) => row.name === col.name)) continue;
+    await db.exec(`ALTER TABLE ${col.table} ADD COLUMN ${col.ddl}`);
+  }
 }

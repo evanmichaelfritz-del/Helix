@@ -104,14 +104,14 @@ function Root() {
         <Routes>
           <Route path="/" element={<TodayPage />} />
           <Route path="/health" element={<VitalsPage />} />
-          <Route path="/protocol" element={<ProtocolLayout />}>
-            <Route index element={<ProtocolHome />} />
-            <Route path="peptides" element={<PeptidesPage />} />
-            <Route path="vials" element={<VialsPage />} />
-            <Route path="log" element={<DoseLogPage />} />
+          <Route element={<ProtocolLayout />}>
+            <Route path="/protocol" element={<ProtocolHome />} />
+            <Route path="/protocol/peptides" element={<PeptidesPage />} />
+            <Route path="/protocol/vials" element={<VialsPage />} />
+            <Route path="/protocol/log" element={<DoseLogPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
           </Route>
           <Route path="/account" element={<AccountPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
         </Routes>
       </Shell>
       <Sheets />

@@ -2,10 +2,11 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import type { Peptide, UserPublic } from "@shared/types.ts";
 
 export type Sheet =
-  | { kind: "log-dose"; peptideId?: string }
-  | { kind: "log-weight" }
+  | { kind: "log-dose"; peptideId?: string; loggedOn?: string }
+  | { kind: "log-weight"; loggedOn?: string }
   | { kind: "add-peptide" }
-  | { kind: "add-vial"; peptideId?: string };
+  | { kind: "add-vial"; peptideId?: string }
+  | { kind: "start-vial"; peptideId: string };
 
 type Toast = { message: string; undo?: () => Promise<void> };
 

@@ -52,7 +52,7 @@ export async function loadToday(opts: {
     [userId],
   );
   const dosesToday = await db.all<DoseRow>(
-    `SELECT * FROM doses WHERE user_id = ? AND logged_on = ? AND ${activeDoseSql(db.dialect)}`,
+    `SELECT * FROM doses WHERE user_id = ? AND logged_on = ? AND ${activeDoseSql(db.dialect)} ORDER BY logged_on DESC, logged_at DESC`,
     [userId, on],
   );
 

@@ -88,9 +88,19 @@ export const client = {
     totalAmount: number;
     dose: number;
     remainingAmount?: number;
+    openedOn?: string | null;
+    bacMl?: number | null;
+    mixedOn?: string | null;
+    syringeUnits?: number;
   }) => api("/api/vials", { method: "POST", json: body }),
-  doses: (on?: string) =>
-    api<{ doses: import("@shared/types.ts").Dose[] }>(`/api/doses${on ? `?on=${on}` : ""}`),
+  doses: (on?: string, range?: { from: string; to: string }) => {
+    const q = new URLSearchParams();
+    if (on) q.set("on", on);
+    if (range?.from) q.set("from", range.from);
+    if (range?.to) q.set("to", range.to);
+    const s = q.toString();
+    return api<{ doses: import("@shared/types.ts").Dose[] }>(`/api/doses${s ? `?${s}` : ""}`);
+  },
   logDose: (body: {
     peptideId: string;
     amount: number;

@@ -39,7 +39,7 @@ PWA name is Helix. Add to Home Screen on your phone after the first deploy.
 
 ## Tabs
 
-Mobile dock has four tabs: Today `/`, Vitals `/health`, Protocol `/protocol`, You `/account`. No Calendar tab on the phone. Desktop rail can open Calendar and sources.
+Mobile dock has four tabs: Today `/`, Vitals `/health`, Protocol `/protocol`, You `/account`. No Calendar tab on the phone. Desktop rail has a Calendar item. Protocol subnav is Next · Vials · Cal · Log · Library. Calendar at `/calendar` is a live month grid.
 
 Today shows the HealthDay whose `loggedOn` is today, not the first row in a list. Recovery % is Whoop when present (green ≥67, amber 34–66, red ≤33). Otherwise Garmin body battery, otherwise sleep hours. Helix does not invent a recovery score.
 

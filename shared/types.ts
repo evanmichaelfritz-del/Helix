@@ -72,6 +72,8 @@ export type Peptide = {
   unit: PeptideUnit;
   color: string;
   lastAmount: number | null;
+  bodyEffect: string | null;
+  expectedResults: string | null;
   createdAt: string;
 };
 
@@ -83,6 +85,9 @@ export type Vial = {
   remainingAmount: number;
   dose: number;
   openedOn: string | null;
+  bacMl: number | null;
+  mixedOn: string | null;
+  syringeUnits: number;
   createdAt: string;
 };
 

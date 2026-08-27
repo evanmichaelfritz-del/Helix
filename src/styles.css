@@ -579,18 +579,224 @@ html.reduce-effects {
   padding: 24px;
 }
 .lock .card { padding: 28px; width: min(360px, 100%); text-align: center; }
+.brand-mark { width: 28px; height: 28px; }
+
+.cal-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.cal-nav { width: auto; padding: 8px 12px; }
+.cal-month {
+  margin: 0;
+  font-weight: 600;
+  font-size: 15px;
+}
 .cal {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 6px;
 }
 .cal b { text-align: center; color: var(--muted); font-size: 11px; font-weight: 500; }
-.cal button, .cal span {
-  aspect-ratio: 1;
+.cal-empty { min-height: 72px; }
+.cal-cell {
+  min-height: 84px;
   border-radius: 12px;
-  border: 1px solid transparent;
-  background: transparent;
-  font-size: 13px;
+  border: 1px solid var(--line);
+  background: var(--solid);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 6px 6px 8px;
+  text-align: left;
 }
-.cal .dot { box-shadow: inset 0 -3px 0 var(--accent); }
-.brand-mark { width: 28px; height: 28px; }
+.cal-cell[aria-pressed="true"] { border-color: var(--border-strong); }
+.cal-num {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 600;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+}
+.cal-num.today {
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+.cal-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.cal-chip {
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1.2;
+  padding: 2px 4px;
+  border-radius: 6px;
+  color: var(--accent-fg);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-chip.weight, .cal-chip.more {
+  background: var(--solid-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.cal-caption { margin: 12px 0 16px; }
+.cal-inspect { padding: 16px 18px 18px; }
+.cal-inspect h2 { margin: 0 0 10px; font-size: 16px; }
+.cal-inspect-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.cal-inspect-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+.cal-w {
+  width: 12px;
+  height: 36px;
+  border-radius: 99px;
+  background: var(--solid-2);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.vial-tabs { margin-bottom: 16px; }
+.mix-card { padding: 16px 18px 8px; }
+.mix-card .muted { margin: 0 0 12px; }
+.syringe-chips {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+.syringe-chip {
+  border: 1px solid var(--line);
+  background: var(--solid-2);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.syringe-chip.on { background: var(--accent-dim); border-color: transparent; }
+.syringe { margin: 0 0 14px; }
+.syringe-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.syringe-hub {
+  width: 22px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--border-strong);
+  background: var(--solid-2);
+  flex: 0 0 auto;
+}
+.syringe-join, .syringe-shaft {
+  height: 1px;
+  background: var(--border-strong);
+  flex: 0 0 auto;
+}
+.syringe-join { width: 8px; }
+.syringe-shaft { width: 14px; }
+.syringe-barrel {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--solid-2);
+  overflow: visible;
+  margin-bottom: 16px;
+}
+.syringe-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px 0 0 3px;
+  opacity: 0.45;
+}
+.syringe-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  background: var(--border-strong);
+}
+.syringe-tick.minor { height: 38%; opacity: 0.55; }
+.syringe-tick.major { bottom: 0; }
+.syringe-tick.draw {
+  bottom: 0;
+  background: var(--text);
+  width: 1px;
+}
+.syringe-label {
+  position: absolute;
+  top: calc(100% + 4px);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.syringe-tip {
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 10px solid var(--muted);
+  flex: 0 0 auto;
+}
+.syringe-caption {
+  margin: 4px 0 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.mix-lead { margin: 0 0 4px; font-size: 13px; }
+.mix-meta { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+.draw-chip {
+  display: inline-flex;
+  margin: 0 auto 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+.peps-card { padding: 0; overflow: hidden; }
+.peps-toggle { border: 0; background: transparent; border-radius: 0; }
+.peps-expand { padding: 0 16px 16px; display: grid; gap: 10px; }
+.peps-copy { margin: 0; font-size: 14px; line-height: 1.45; }
+.peps-disclaimer { margin: 0; }
+.chevron { width: 18px; height: 18px; color: var(--muted); transition: transform 0.15s ease; flex: 0 0 auto; }
+.chevron.open { transform: rotate(180deg); }
+.mix-dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 12px 0 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--solid-2);
+}
+.mix-dl div { display: grid; gap: 2px; }
+.mix-dl dt { font-size: 11px; color: var(--muted); }
+.mix-dl dd { margin: 0; font-family: var(--mono); font-size: 14px; }

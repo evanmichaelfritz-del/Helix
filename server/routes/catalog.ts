@@ -127,6 +127,9 @@ vialRoutes.post(
       remainingAmount: z.number().min(0).optional(),
       dose: z.number().positive(),
       openedOn: z.string().nullable().optional(),
+      bacMl: z.number().positive().nullable().optional(),
+      mixedOn: z.string().nullable().optional(),
+      syringeUnits: z.number().positive().optional(),
     }),
   ),
   async (c) => {
@@ -139,6 +142,7 @@ vialRoutes.post(
     );
     if (!peptide) return c.json({ error: "Peptide not found." }, 404);
     const remaining = body.remainingAmount ?? body.totalAmount;
+    const mixedOn = body.mixedOn ?? body.openedOn ?? null;
     const row: VialRow = {
       id: newId(),
       user_id: user.id,
@@ -147,11 +151,14 @@ vialRoutes.post(
       total_amount: body.totalAmount,
       remaining_amount: remaining,
       dose: body.dose,
-      opened_on: body.openedOn ?? null,
+      opened_on: body.openedOn ?? mixedOn,
+      bac_ml: body.bacMl ?? null,
+      mixed_on: mixedOn,
+      syringe_units: body.syringeUnits ?? 100,
       created_at: new Date().toISOString(),
     };
     await db.run(
-      "INSERT INTO vials (id, user_id, peptide_id, label, total_amount, remaining_amount, dose, opened_on, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO vials (id, user_id, peptide_id, label, total_amount, remaining_amount, dose, opened_on, created_at, bac_ml, mixed_on, syringe_units) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         row.id,
         row.user_id,
@@ -162,6 +169,9 @@ vialRoutes.post(
         row.dose,
         row.opened_on,
         row.created_at,
+        row.bac_ml ?? null,
+        row.mixed_on ?? null,
+        row.syringe_units ?? 100,
       ],
     );
     const vial = mapVial(row);
