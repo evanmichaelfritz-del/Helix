@@ -84,6 +84,249 @@ describe("today hero matching", () => {
   });
 });
 
+const HELIX_PEPTIDES = ["Tesamorelin", "Ipamorelin", "BPC-157", "CJC-1295"] as const;
+
+function helixHelperRecords() {
+  const peptides = HELIX_PEPTIDES.map((name) => ({ name, unit: "mcg" as const, lastAmount: 250 }));
+  const vials = HELIX_PEPTIDES.map((name) => ({
+    peptideName: name,
+    label: `${name} vial`,
+    totalAmount: 2500,
+    remainingAmount: 2000,
+    dose: 250,
+  }));
+  const doses = Array.from({ length: 69 }, (_, i) => {
+    const month = 1 + Math.floor(i / 28);
+    const day = 1 + (i % 28);
+    return {
+      peptideName: HELIX_PEPTIDES[i % 4],
+      amount: 250,
+      unit: "mcg" as const,
+      loggedOn: `2026-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    };
+  });
+  const weighIns = Array.from({ length: 9 }, (_, i) => ({
+    loggedOn: `2026-01-${String(i + 1).padStart(2, "0")}`,
+    kg: 82 + i * 0.1,
+  }));
+  return {
+    source: "helix" as const,
+    healthDays: [
+      { loggedOn: "2026-01-01", whoopRecovery: 70, sleepHours: 7.2 },
+      { loggedOn: "2026-01-02", whoopRecovery: 55 },
+    ],
+    workouts: [
+      { loggedOn: "2026-01-01", name: "Zone 2", durationMin: 45 },
+      { loggedOn: "2026-01-02", name: "Lift" },
+    ],
+    weighIns,
+    peptides,
+    vials,
+    doses,
+  };
+}
+
+function wrapDb(
+  inner: Database,
+  interceptRun?: (sql: string, run: Database["run"]) => ReturnType<Database["run"]>,
+): { db: Database; sqls: string[] } {
+  const sqls: string[] = [];
+  const wrap = (db: Database): Database => ({
+    dialect: db.dialect,
+    all: async (sql, params) => {
+      sqls.push(sql);
+      return db.all(sql, params);
+    },
+    get: async (sql, params) => {
+      sqls.push(sql);
+      return db.get(sql, params);
+    },
+    run: async (sql, params) => {
+      sqls.push(sql);
+      if (interceptRun) return interceptRun(sql, (nextSql, nextParams) => db.run(nextSql, nextParams ?? params));
+      return db.run(sql, params);
+    },
+    exec: async (sql) => {
+      sqls.push(sql);
+      return db.exec(sql);
+    },
+    transaction: (fn) => db.transaction((tx) => fn(wrap(tx))),
+    batch: async (statements) => {
+      for (const statement of statements) sqls.push(statement.sql);
+      if (!interceptRun) return db.batch(statements);
+      return inner.transaction(async () => {
+        for (const statement of statements) {
+          await interceptRun(statement.sql, (sql, params) =>
+            inner.run(sql, params ?? statement.params ?? []),
+          );
+        }
+        return [];
+      });
+    },
+  });
+  return { db: wrap(inner), sqls };
+}
+
+describe("import records batch", () => {
+  it("imports 69 doses + 9 weigh-ins + 4 peptides + 4 vials without per-dose selects", async () => {
+    const raw = await createSqliteDb(":memory:");
+    await migrate(raw);
+    const { db, sqls } = wrapDb(raw);
+    const app = createApp(db);
+    const cookie = await signup(app);
+    sqls.length = 0;
+    const payload = helixHelperRecords();
+    const res = await app.request("/api/import/records", {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      healthDays: 2,
+      workouts: 2,
+      weighIns: 9,
+      peptides: 4,
+      vials: 4,
+      doses: 69,
+      warnings: [],
+    });
+    expect(sqls.filter((sql) => /^\s*SELECT\b/i.test(sql) && /\bFROM doses\b/i.test(sql))).toHaveLength(1);
+    expect(sqls.some((sql) => /peptide_id = \? AND logged_on = \?/.test(sql))).toBe(false);
+    const doseInserts = sqls.filter((sql) => /INSERT INTO doses/i.test(sql));
+    expect(doseInserts).toHaveLength(1);
+    expect(doseInserts[0]).toMatch(/UNION ALL/);
+    expect(await raw.all("SELECT id FROM doses")).toHaveLength(69);
+    expect(await raw.all("SELECT id FROM peptides")).toHaveLength(4);
+    expect(await raw.all("SELECT id FROM vials")).toHaveLength(4);
+    expect(await raw.all("SELECT id FROM weigh_ins")).toHaveLength(9);
+  });
+
+  it("second import skips duplicate peptides and same-day doses", async () => {
+    const db = await createSqliteDb(":memory:");
+    await migrate(db);
+    const app = createApp(db);
+    const cookie = await signup(app);
+    const headers = { Cookie: cookie, "Content-Type": "application/json" };
+    const payload = helixHelperRecords();
+    const first = await app.request("/api/import/records", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    expect(first.status).toBe(200);
+    const second = await app.request("/api/import/records", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    expect(second.status).toBe(200);
+    const body = (await second.json()) as {
+      peptides: number;
+      vials: number;
+      doses: number;
+      weighIns: number;
+      workouts: number;
+      healthDays: number;
+      warnings: string[];
+    };
+    expect(body.peptides).toBe(0);
+    expect(body.doses).toBe(0);
+    expect(body.workouts).toBe(0);
+    expect(body.weighIns).toBe(9);
+    expect(body.healthDays).toBe(2);
+    expect(body.vials).toBe(4);
+    expect(body.warnings).toEqual(HELIX_PEPTIDES.map((name) => `Skipped peptide already in Helix: ${name}`));
+    expect(await db.all("SELECT id FROM peptides")).toHaveLength(4);
+    expect(await db.all("SELECT id FROM doses")).toHaveLength(69);
+    expect(await db.all("SELECT id FROM vials")).toHaveLength(8);
+  });
+
+  it("rolls back weigh-ins when a later write fails", async () => {
+    const raw = await createSqliteDb(":memory:");
+    await migrate(raw);
+    const { db } = wrapDb(raw, async (sql, run) => {
+      if (/INSERT INTO doses/i.test(sql)) throw new Error("injected failure after weigh-ins");
+      return run(sql);
+    });
+    const app = createApp(db);
+    const cookie = await signup(app);
+    const res = await app.request("/api/import/records", {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: JSON.stringify(helixHelperRecords()),
+    });
+    expect(res.status).toBe(500);
+    expect(await raw.all("SELECT id FROM weigh_ins")).toEqual([]);
+    expect(await raw.all("SELECT id FROM peptides")).toEqual([]);
+    expect(await raw.all("SELECT id FROM vials")).toEqual([]);
+    expect(await raw.all("SELECT id FROM doses")).toEqual([]);
+    expect(await raw.all("SELECT id FROM health_days")).toEqual([]);
+    expect(await raw.all("SELECT id FROM workouts")).toEqual([]);
+  });
+
+  it("skips vials and doses for unknown peptides", async () => {
+    const app = await testApp();
+    const cookie = await signup(app);
+    const res = await app.request("/api/import/records", {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source: "helix",
+        healthDays: [],
+        workouts: [],
+        weighIns: [],
+        peptides: [],
+        vials: [
+          {
+            peptideName: "Mystery",
+            totalAmount: 1000,
+            remainingAmount: 1000,
+            dose: 250,
+          },
+        ],
+        doses: [{ peptideName: "Mystery", amount: 250, unit: "mcg", loggedOn: "2026-01-01" }],
+      }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      healthDays: 0,
+      workouts: 0,
+      weighIns: 0,
+      peptides: 0,
+      vials: 0,
+      doses: 0,
+      warnings: ["Skipped vial for unknown peptide: Mystery", "Skipped dose for unknown peptide: Mystery"],
+    });
+  });
+
+  it("401s unauthenticated import without touching records", async () => {
+    const app = await testApp();
+    const res = await app.request("/api/import/records", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "helix", healthDays: [], workouts: [], weighIns: [] }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("batches writes in one transaction without COPY or a second function", () => {
+    const text = readFileSync("server/routes/import.ts", "utf8");
+    const db = readFileSync("server/db.ts", "utf8");
+    expect(text).toMatch(/db\.batch/);
+    expect(text).toMatch(/INSERT INTO doses \([^)]+\)/);
+    expect(text).toMatch(/UNION ALL/);
+    expect(text).not.toMatch(/\bCOPY\b/);
+    expect(text).not.toMatch(/SELECT id FROM doses WHERE user_id = \? AND peptide_id/);
+    expect(db).toMatch(/sql\.transaction/);
+    expect(db).not.toMatch(/\bnew Pool\b/);
+    expect(db).not.toMatch(/\bnew Client\b/);
+    expect(globSync("api/**/*.{ts,js}").filter((f) => !f.includes("/_"))).toEqual(["api/index.ts"]);
+    expect(readFileSync("api/index.ts", "utf8")).toMatch(/maxDuration:\s*10/);
+    expect(readFileSync("vercel.json", "utf8")).toMatch(/"maxDuration":\s*10/);
+  });
+});
+
 describe("doses", () => {
   it("blocks double-log and undo restores the slot", async () => {
     const app = await testApp();
@@ -150,6 +393,8 @@ describe("postgres schema", () => {
       exec: async (sql) => {
         statements.push(sql);
       },
+      transaction: async (fn) => fn(db),
+      batch: async () => [],
     };
     await migrate(db);
     expect(statements).toEqual(POSTGRES_SCHEMA);

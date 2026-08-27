@@ -5,12 +5,24 @@ import { schemaFor } from "./schema.js";
 
 export type SqlValue = string | number | null | bigint | boolean;
 
+export type SqlBatchStatement = { sql: string; params?: SqlValue[] };
+
 export type Database = {
   dialect: "sqlite" | "postgres";
   all: <T>(sql: string, params?: SqlValue[]) => Promise<T[]>;
   get: <T>(sql: string, params?: SqlValue[]) => Promise<T | undefined>;
   run: (sql: string, params?: SqlValue[]) => Promise<{ changes: number }>;
   exec: (sql: string) => Promise<void>;
+  /**
+   * SQLite: interactive BEGIN/COMMIT on the same connection.
+   * Neon HTTP: collect writes, then one `sql.transaction([...])` fetch (non-interactive).
+   */
+  transaction: <T>(fn: (tx: Database) => Promise<T>) => Promise<T>;
+  /**
+   * One transaction of statements in order. SQLite: BEGIN … COMMIT / ROLLBACK.
+   * Neon HTTP: one `sql.transaction([...])` fetch (no Pool/Client).
+   */
+  batch: (statements: SqlBatchStatement[]) => Promise<unknown[][]>;
 };
 
 export function isPostgresUrl(url: string | undefined): boolean {
@@ -81,7 +93,7 @@ function toPg(sql: string): string {
 
 function createNeonDb(url: string): Database {
   const sql = neon(url);
-  return {
+  const db: Database = {
     dialect: "postgres",
     async all<T>(query: string, params: SqlValue[] = []) {
       const rows = await sql.query(toPg(query), params);
@@ -99,7 +111,47 @@ function createNeonDb(url: string): Database {
       const tpl = Object.assign([statement], { raw: [statement] }) as unknown as TemplateStringsArray;
       await sql(tpl);
     },
+    async transaction(fn) {
+      const queued: { query: string; params: SqlValue[] }[] = [];
+      const tx: Database = {
+        dialect: "postgres",
+        all: async () => {
+          throw new Error("Neon HTTP transactions are non-interactive; use db.batch([...])");
+        },
+        get: async () => {
+          throw new Error("Neon HTTP transactions are non-interactive; use db.batch([...])");
+        },
+        run: async (query, params = []) => {
+          queued.push({ query, params });
+          return { changes: 0 };
+        },
+        exec: async (statement) => {
+          queued.push({ query: statement, params: [] });
+        },
+        transaction: async () => {
+          throw new Error("Nested transactions are not supported");
+        },
+        batch: async () => {
+          throw new Error("Nested batch is not supported");
+        },
+      };
+      const result = await fn(tx);
+      if (queued.length > 0) {
+        await sql.transaction((txn) =>
+          queued.map((item) => txn.query(toPg(item.query), item.params)),
+        );
+      }
+      return result;
+    },
+    async batch(statements) {
+      if (statements.length === 0) return [];
+      const results = await sql.transaction((txn) =>
+        statements.map((item) => txn.query(toPg(item.sql), item.params ?? [])),
+      );
+      return results as unknown[][];
+    },
   };
+  return db;
 }
 
 export async function createSqliteDb(url: string): Promise<Database> {
@@ -113,7 +165,7 @@ export async function createSqliteDb(url: string): Promise<Database> {
   const client = createClient({ url: memory ? ":memory:" : url });
   await client.execute("PRAGMA foreign_keys = ON");
   await client.execute("PRAGMA journal_mode = WAL");
-  return {
+  const db: Database = {
     dialect: "sqlite",
     async all<T>(query: string, params: SqlValue[] = []) {
       const result = await client.execute({ sql: query, args: params });
@@ -130,7 +182,33 @@ export async function createSqliteDb(url: string): Promise<Database> {
     async exec(statement: string) {
       await client.execute(statement);
     },
+    async transaction(fn) {
+      await client.execute("BEGIN");
+      try {
+        const result = await fn(db);
+        await client.execute("COMMIT");
+        return result;
+      } catch (err) {
+        try {
+          await client.execute("ROLLBACK");
+        } catch {
+          /* no open transaction */
+        }
+        throw err;
+      }
+    },
+    async batch(statements) {
+      if (statements.length === 0) return [];
+      return db.transaction(async (tx) => {
+        const results: unknown[][] = [];
+        for (const item of statements) {
+          results.push(await tx.all(item.sql, item.params ?? []));
+        }
+        return results;
+      });
+    },
   };
+  return db;
 }
 
 const migrated = new WeakSet<Database>();
