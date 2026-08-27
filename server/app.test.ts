@@ -9,6 +9,7 @@ import { createSqliteDb, migrate, type Database } from "./db.js";
 import { linkOrCreateOAuthUser } from "./oauth-user.js";
 import { POSTGRES_SCHEMA, schemaFor } from "./schema.js";
 import { webauthnOrigins } from "./origin.js";
+import { activeDoseSql } from "./dialect.js";
 import { globSync, readFileSync } from "node:fs";
 
 async function testApp() {
@@ -196,6 +197,11 @@ describe("import records batch", () => {
     const doseInserts = sqls.filter((sql) => /INSERT INTO doses/i.test(sql));
     expect(doseInserts).toHaveLength(1);
     expect(doseInserts[0]).toMatch(/UNION ALL/);
+    expect(doseInserts[0]).toMatch(/\bd\.undone\b/);
+    expect(doseInserts[0]).not.toMatch(/AND undone =/);
+    const vialInserts = sqls.filter((sql) => /INSERT INTO vials/i.test(sql));
+    expect(vialInserts).toHaveLength(1);
+    expect(vialInserts[0]).toMatch(/WHERE NOT EXISTS \(\s*SELECT 1 FROM vials v/s);
     expect(await raw.all("SELECT id FROM doses")).toHaveLength(69);
     expect(await raw.all("SELECT id FROM peptides")).toHaveLength(4);
     expect(await raw.all("SELECT id FROM vials")).toHaveLength(4);
@@ -235,10 +241,52 @@ describe("import records batch", () => {
     expect(body.workouts).toBe(0);
     expect(body.weighIns).toBe(9);
     expect(body.healthDays).toBe(2);
-    expect(body.vials).toBe(4);
-    expect(body.warnings).toEqual(HELIX_PEPTIDES.map((name) => `Skipped peptide already in Helix: ${name}`));
+    expect(body.vials).toBe(0);
+    expect(body.warnings).toEqual([
+      ...HELIX_PEPTIDES.map((name) => `Skipped peptide already in Helix: ${name}`),
+      ...HELIX_PEPTIDES.map((name) => `Skipped vial already in Helix: ${name}`),
+    ]);
     expect(await db.all("SELECT id FROM peptides")).toHaveLength(4);
     expect(await db.all("SELECT id FROM doses")).toHaveLength(69);
+    expect(await db.all("SELECT id FROM vials")).toHaveLength(4);
+  });
+
+  it("does not insert a third vial set when peptides already have vials", async () => {
+    const db = await createSqliteDb(":memory:");
+    await migrate(db);
+    const app = createApp(db);
+    const cookie = await signup(app);
+    const headers = { Cookie: cookie, "Content-Type": "application/json" };
+    const payload = helixHelperRecords();
+    const first = await app.request("/api/import/records", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    expect(first.status).toBe(200);
+    const peptidesRes = await app.request("/api/peptides", { headers });
+    const peptides = ((await peptidesRes.json()) as { peptides: Array<{ id: string }> }).peptides;
+    expect(peptides).toHaveLength(4);
+    for (const peptide of peptides) {
+      const created = await app.request("/api/vials", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ peptideId: peptide.id, totalAmount: 2500, dose: 250 }),
+      });
+      expect(created.status).toBe(201);
+    }
+    expect(await db.all("SELECT id FROM vials")).toHaveLength(8);
+    const retry = await app.request("/api/import/records", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    expect(retry.status).toBe(200);
+    const body = (await retry.json()) as { vials: number; warnings: string[] };
+    expect(body.vials).toBe(0);
+    expect(body.warnings).toEqual(
+      expect.arrayContaining(HELIX_PEPTIDES.map((name) => `Skipped vial already in Helix: ${name}`)),
+    );
     expect(await db.all("SELECT id FROM vials")).toHaveLength(8);
   });
 
@@ -316,14 +364,24 @@ describe("import records batch", () => {
     expect(text).toMatch(/db\.batch/);
     expect(text).toMatch(/INSERT INTO doses \([^)]+\)/);
     expect(text).toMatch(/UNION ALL/);
+    expect(text).toMatch(/activeDoseSql\(db\.dialect, "d"\)/);
+    expect(text).toMatch(/FROM vials v/);
     expect(text).not.toMatch(/\bCOPY\b/);
     expect(text).not.toMatch(/SELECT id FROM doses WHERE user_id = \? AND peptide_id/);
+    expect(text).not.toMatch(/INSERT INTO vials[\s\S]*ON CONFLICT/);
     expect(db).toMatch(/sql\.transaction/);
     expect(db).not.toMatch(/\bnew Pool\b/);
     expect(db).not.toMatch(/\bnew Client\b/);
     expect(globSync("api/**/*.{ts,js}").filter((f) => !f.includes("/_"))).toEqual(["api/index.ts"]);
     expect(readFileSync("api/index.ts", "utf8")).toMatch(/maxDuration:\s*10/);
     expect(readFileSync("vercel.json", "utf8")).toMatch(/"maxDuration":\s*10/);
+  });
+
+  it("qualifies the active-dose predicate when an alias is in scope", () => {
+    expect(activeDoseSql("postgres")).toBe("undone = FALSE");
+    expect(activeDoseSql("sqlite")).toBe("undone = 0");
+    expect(activeDoseSql("postgres", "d")).toBe("d.undone = FALSE");
+    expect(activeDoseSql("sqlite", "d")).toBe("d.undone = 0");
   });
 });
 

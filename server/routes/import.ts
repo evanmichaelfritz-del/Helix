@@ -133,6 +133,10 @@ function pushUnionInsert(
   }
 }
 
+function batchRows<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 export const importRoutes = new Hono<Env>();
 
 importRoutes.post("/records", zValidator("json", recordsSchema), async (c) => {
@@ -163,6 +167,7 @@ async function importRecords(
   const incomingDoses = body.doses ?? [];
   const undone = undoneParam(db.dialect, false);
   const activeDose = activeDoseSql(db.dialect);
+  const skipActiveDose = activeDoseSql(db.dialect, "d");
 
   const uniquePeptides: SqlValue[][] = [];
   const seenPeptide = new Set<string>();
@@ -300,6 +305,7 @@ async function importRecords(
     { sql: "SELECT id, logged_on FROM weigh_ins WHERE user_id = ?", params: [userId] },
     { sql: "SELECT * FROM health_days WHERE user_id = ?", params: [userId] },
     { sql: "SELECT logged_on, name FROM workouts WHERE user_id = ?", params: [userId] },
+    { sql: "SELECT peptide_id FROM vials WHERE user_id = ?", params: [userId] },
   ];
 
   pushValues(
@@ -364,7 +370,11 @@ async function importRecords(
     ],
     vialRows,
     `) AS incoming
-     INNER JOIN peptides p ON p.user_id = incoming.user_id AND lower(p.name) = lower(incoming.peptide_name)`,
+     INNER JOIN peptides p ON p.user_id = incoming.user_id AND lower(p.name) = lower(incoming.peptide_name)
+     WHERE NOT EXISTS (
+       SELECT 1 FROM vials v
+       WHERE v.user_id = incoming.user_id AND v.peptide_id = p.id
+     )`,
   );
   pushUnionInsert(
     statements,
@@ -377,14 +387,15 @@ async function importRecords(
      INNER JOIN peptides p ON p.user_id = incoming.user_id AND lower(p.name) = lower(incoming.peptide_name)
      WHERE NOT EXISTS (
        SELECT 1 FROM doses d
-       WHERE d.user_id = incoming.user_id AND d.peptide_id = p.id AND d.logged_on = incoming.logged_on AND ${activeDose}
+       WHERE d.user_id = incoming.user_id AND d.peptide_id = p.id AND d.logged_on = incoming.logged_on AND ${skipActiveDose}
      )`,
   );
 
   const results = await db.batch(statements);
-  const existingPeptides = (results[0] ?? []) as PeptideRow[];
-  const existingDoses = (results[1] ?? []) as Array<{ peptide_id: string; logged_on: string }>;
-  const existingWorkouts = (results[4] ?? []) as Array<{ logged_on: string; name: string }>;
+  const existingPeptides = batchRows<PeptideRow>(results[0]);
+  const existingDoses = batchRows<{ peptide_id: string; logged_on: string }>(results[1]);
+  const existingWorkouts = batchRows<{ logged_on: string; name: string }>(results[4]);
+  const existingVials = batchRows<{ peptide_id: string }>(results[5]);
 
   const existingPeptideNames = new Set(existingPeptides.map((p) => p.name.toLowerCase()));
   const peptideIdName = new Map(existingPeptides.map((p) => [p.id, p.name.toLowerCase()]));
@@ -394,6 +405,11 @@ async function importRecords(
   const existingWorkoutKeys = new Set(existingWorkouts.map((w) => `${w.logged_on}\0${w.name}`));
   const knownPeptides = new Set(existingPeptideNames);
   for (const row of uniquePeptides) knownPeptides.add(String(row[2]).toLowerCase());
+  const peptidesWithVials = new Set(
+    existingVials
+      .map((v) => peptideIdName.get(v.peptide_id))
+      .filter((name): name is string => Boolean(name)),
+  );
 
   let peptides = 0;
   for (const row of uniquePeptides) {
@@ -412,8 +428,13 @@ async function importRecords(
 
   let vials = 0;
   for (const v of incomingVials) {
-    if (!knownPeptides.has(v.peptideName.toLowerCase())) {
+    const nameKey = v.peptideName.toLowerCase();
+    if (!knownPeptides.has(nameKey)) {
       warnings.push(`Skipped vial for unknown peptide: ${v.peptideName}`);
+      continue;
+    }
+    if (peptidesWithVials.has(nameKey)) {
+      warnings.push(`Skipped vial already in Helix: ${v.peptideName}`);
       continue;
     }
     vials += 1;
