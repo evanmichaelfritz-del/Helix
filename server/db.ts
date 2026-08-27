@@ -35,6 +35,28 @@ export async function migrate(db: Database): Promise<void> {
   for (const statement of schemaFor(db.dialect)) {
     await db.exec(statement);
   }
+  if (db.dialect === "sqlite") await sqliteRelaxPasswordHash(db);
+}
+
+async function sqliteRelaxPasswordHash(db: Database): Promise<void> {
+  const cols = await db.all<{ name: string; notnull: number }>("PRAGMA table_info(users)");
+  const hash = cols.find((col) => col.name === "password_hash");
+  if (!hash || hash.notnull === 0) return;
+  await db.exec("PRAGMA foreign_keys = OFF");
+  await db.exec(`CREATE TABLE users_password_hash_relax (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT,
+    display_name TEXT,
+    settings TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL
+  )`);
+  await db.exec(
+    "INSERT INTO users_password_hash_relax (id, email, password_hash, display_name, settings, created_at) SELECT id, email, password_hash, display_name, settings, created_at FROM users",
+  );
+  await db.exec("DROP TABLE users");
+  await db.exec("ALTER TABLE users_password_hash_relax RENAME TO users");
+  await db.exec("PRAGMA foreign_keys = ON");
 }
 
 function toPg(sql: string): string {

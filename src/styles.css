@@ -423,6 +423,33 @@ html.reduce-effects {
 .auth .card { width: min(400px, 100%); padding: 28px; }
 .auth h1 { font-size: 28px; letter-spacing: -0.03em; text-transform: none; color: var(--text); margin: 0 0 6px; }
 .auth p { color: var(--muted); margin: 0 0 20px; }
+.auth .error { color: var(--red); }
+.auth-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.auth-or::before,
+.auth-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.auth-forgot {
+  display: block;
+  width: max-content;
+  margin: -4px 0 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+.auth .stack { margin-bottom: 0; }
 .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 16px; }
 .tabs button {
   border: 1px solid var(--line);

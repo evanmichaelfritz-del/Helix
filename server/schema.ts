@@ -2,7 +2,7 @@ export const SQLITE_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
+    password_hash TEXT,
     display_name TEXT,
     settings TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL
@@ -77,13 +77,44 @@ export const SQLITE_SCHEMA = [
   `CREATE INDEX IF NOT EXISTS doses_user_on ON doses(user_id, logged_on)`,
   `CREATE INDEX IF NOT EXISTS workouts_user_on ON workouts(user_id, logged_on)`,
   `CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id)`,
+  `CREATE TABLE IF NOT EXISTS identities (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    provider_user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (provider, provider_user_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS webauthn_credentials (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    credential_id TEXT NOT NULL UNIQUE,
+    public_key TEXT NOT NULL,
+    counter INTEGER NOT NULL,
+    transports TEXT,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS webauthn_challenges (
+    id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    challenge TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS password_resets (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS identities_user ON identities(user_id)`,
+  `CREATE INDEX IF NOT EXISTS webauthn_credentials_user ON webauthn_credentials(user_id)`,
 ];
 
 export const POSTGRES_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS users (
     id text PRIMARY KEY,
     email text NOT NULL UNIQUE,
-    password_hash text NOT NULL,
+    password_hash text,
     display_name text,
     settings jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamptz NOT NULL
@@ -158,6 +189,38 @@ export const POSTGRES_SCHEMA = [
   `CREATE INDEX IF NOT EXISTS doses_user_on ON doses(user_id, logged_on)`,
   `CREATE INDEX IF NOT EXISTS workouts_user_on ON workouts(user_id, logged_on)`,
   `CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id)`,
+  `ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`,
+  `CREATE TABLE IF NOT EXISTS identities (
+    id text PRIMARY KEY,
+    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider text NOT NULL,
+    provider_user_id text NOT NULL,
+    created_at timestamptz NOT NULL,
+    UNIQUE (provider, provider_user_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS webauthn_credentials (
+    id text PRIMARY KEY,
+    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    credential_id text NOT NULL UNIQUE,
+    public_key text NOT NULL,
+    counter integer NOT NULL,
+    transports text,
+    created_at timestamptz NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS webauthn_challenges (
+    id text PRIMARY KEY,
+    user_id text REFERENCES users(id) ON DELETE CASCADE,
+    challenge text NOT NULL,
+    kind text NOT NULL,
+    expires_at timestamptz NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS password_resets (
+    id text PRIMARY KEY,
+    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at timestamptz NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS identities_user ON identities(user_id)`,
+  `CREATE INDEX IF NOT EXISTS webauthn_credentials_user ON webauthn_credentials(user_id)`,
 ];
 
 export function schemaFor(dialect: "sqlite" | "postgres"): string[] {

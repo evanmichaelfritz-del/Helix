@@ -45,6 +45,16 @@ export const client = {
   login: (email: string, password: string) =>
     api<{ user: UserPublic }>("/api/auth/login", { method: "POST", json: { email, password } }),
   logout: () => api<{ ok: true }>("/api/auth/logout", { method: "POST" }),
+  forgot: (email: string) => api<{ ok: true }>("/api/auth/forgot", { method: "POST", json: { email } }),
+  resetPassword: (token: string, password: string) =>
+    api<{ user: UserPublic }>("/api/auth/reset", { method: "POST", json: { token, password } }),
+  passkeyOptions: (kind: "register" | "authenticate") =>
+    api<{ options: Record<string, unknown> }>("/api/auth/passkey/options", { method: "POST", json: { kind } }),
+  passkeyVerify: (kind: "register" | "authenticate", response: unknown) =>
+    api<{ ok?: true; user?: UserPublic }>("/api/auth/passkey/verify", {
+      method: "POST",
+      json: { kind, response },
+    }),
   me: () => api<{ user: UserPublic }>("/api/me"),
   patchMe: (body: {
     displayName?: string | null;

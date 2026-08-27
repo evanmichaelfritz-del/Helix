@@ -15,7 +15,7 @@ export type AppContext = Context<Env>;
 export type UserRow = {
   id: string;
   email: string;
-  password_hash: string;
+  password_hash: string | null;
   display_name: string | null;
   settings: string;
   created_at: string;

@@ -159,6 +159,17 @@ describe("postgres schema", () => {
     expect(blob).toMatch(/WHERE NOT undone/);
     expect(blob).not.toMatch(/INTEGER NOT NULL DEFAULT 0/);
     expect(schemaFor("sqlite").join("\n")).toMatch(/INTEGER NOT NULL DEFAULT 0/);
+    const sqlite = schemaFor("sqlite").join("\n");
+    const pg = schemaFor("postgres").join("\n");
+    expect(sqlite).toMatch(/password_hash TEXT,/);
+    expect(sqlite).not.toMatch(/password_hash TEXT NOT NULL/);
+    expect(pg).toMatch(/password_hash text,/);
+    expect(pg).not.toMatch(/password_hash text NOT NULL/);
+    expect(pg).toMatch(/ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL/);
+    expect(sqlite).toMatch(/CREATE TABLE IF NOT EXISTS identities/);
+    expect(pg).toMatch(/CREATE TABLE IF NOT EXISTS identities/);
+    expect(sqlite).toMatch(/webauthn_credentials/);
+    expect(pg).toMatch(/webauthn_credentials/);
   });
 });
 
@@ -334,5 +345,125 @@ describe("design scaffold locks", () => {
     expect(today).not.toMatch(/sleepPerf/);
     expect(vitals).not.toMatch(/sleepPerf/);
     expect(you).not.toMatch(/sleepPerf/);
+  });
+});
+
+describe("auth page lock", () => {
+  it("locks login chrome copy and order", () => {
+    const text = readFileSync("src/pages/Auth.tsx", "utf8");
+    expect(text).toContain("Sign in with Face ID");
+    expect(text).toContain("Sign in with passkey");
+    expect(text).toContain("Continue with Google");
+    expect(text).toContain("Continue with X");
+    expect(text).toMatch(/className="auth-or">or</);
+    expect(text).toContain("Forgot password?");
+    expect(text).toContain("Reset your password");
+    expect(text).toContain("Send reset link");
+    expect(text).toContain("Back to log in");
+    expect(text).toContain("If that email has a Helix password, we sent a link");
+    expect(text).toContain("Save a passkey for next time");
+    expect(text).toContain("Save Face ID for next time");
+    expect(text).toContain("isUserVerifyingPlatformAuthenticatorAvailable");
+    const google = text.indexOf("Continue with Google");
+    const x = text.indexOf("Continue with X");
+    const or = text.indexOf(">or<");
+    const forgot = text.indexOf("Forgot password?");
+    expect(google).toBeGreaterThan(0);
+    expect(x).toBeGreaterThan(google);
+    expect(or).toBeGreaterThan(x);
+    expect(forgot).toBeGreaterThan(or);
+    expect(text).not.toMatch(/Apple/);
+    expect(text).not.toMatch(/WebAuthn/);
+    expect(text).not.toMatch(/Twitter/);
+  });
+
+  it("keeps the You Face ID overlay as a client lock", () => {
+    const chrome = readFileSync("src/lib/chrome.ts", "utf8");
+    const app = readFileSync("src/App.tsx", "utf8");
+    expect(chrome).toContain("registerFaceId");
+    expect(chrome).toContain("unlockFaceId");
+    expect(chrome).toContain("helix:faceId:");
+    expect(app).toContain("LockScreen");
+    expect(app).toContain("unlockFaceId");
+  });
+});
+
+describe("auth backend", () => {
+  it("returns the same generic forgot payload and does not enumerate", async () => {
+    const db = await createSqliteDb(":memory:");
+    await migrate(db);
+    const app = createApp(db);
+    const cookie = await signup(app);
+    const missing = await app.request("/api/auth/forgot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "nobody@example.com" }),
+    });
+    const existing = await app.request("/api/auth/forgot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ email: "evan@example.com" }),
+    });
+    expect(missing.status).toBe(200);
+    expect(existing.status).toBe(200);
+    expect(await missing.json()).toEqual({ ok: true });
+    expect(await existing.json()).toEqual({ ok: true });
+    const tokens = await db.all("SELECT id FROM password_resets");
+    expect(tokens).toEqual([]);
+  });
+
+  it("401s OAuth-only users with the same password error and does not throw", async () => {
+    const db = await createSqliteDb(":memory:");
+    await migrate(db);
+    const app = createApp(db);
+    await db.run(
+      "INSERT INTO users (id, email, password_hash, display_name, settings, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      ["u1", "oauth@example.com", null, null, "{}", new Date().toISOString()],
+    );
+    const res = await app.request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "oauth@example.com", password: "password12" }),
+    });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "Email or password is wrong." });
+  });
+
+  it("fail-closes Google and X start when env is missing", async () => {
+    const app = await testApp();
+    const google = await app.request("/api/auth/google");
+    const x = await app.request("/api/auth/x");
+    expect(google.status).toBe(302);
+    expect(x.status).toBe(302);
+    expect(new URL(google.headers.get("location") ?? "").searchParams.get("auth_error")).toBe(
+      "Google sign-in isn't configured.",
+    );
+    expect(new URL(x.headers.get("location") ?? "").searchParams.get("auth_error")).toBe(
+      "X sign-in isn't configured.",
+    );
+  });
+
+  it("starts Google authorize when env is set", async () => {
+    const prevId = process.env.GOOGLE_CLIENT_ID;
+    const prevSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const prevOrigin = process.env.APP_ORIGIN;
+    process.env.GOOGLE_CLIENT_ID = "id.apps.googleusercontent.com";
+    process.env.GOOGLE_CLIENT_SECRET = "secret";
+    process.env.APP_ORIGIN = "https://helix-green-one.vercel.app";
+    try {
+      const app = await testApp();
+      const res = await app.request("/api/auth/google");
+      expect(res.status).toBe(302);
+      const loc = res.headers.get("location") ?? "";
+      expect(loc).toMatch(/accounts\.google\.com/);
+      expect(loc).toContain("helix-green-one.vercel.app%2Fapi%2Fauth%2Fgoogle%2Fcallback");
+    } finally {
+      if (prevId === undefined) delete process.env.GOOGLE_CLIENT_ID;
+      else process.env.GOOGLE_CLIENT_ID = prevId;
+      if (prevSecret === undefined) delete process.env.GOOGLE_CLIENT_SECRET;
+      else process.env.GOOGLE_CLIENT_SECRET = prevSecret;
+      if (prevOrigin === undefined) delete process.env.APP_ORIGIN;
+      else process.env.APP_ORIGIN = prevOrigin;
+    }
   });
 });
