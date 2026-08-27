@@ -51,7 +51,9 @@ function assertion(challenge: string, id: string) {
       ),
       authenticatorData: "AA",
       signature: "AA",
+      attestationObject: "AA",
     },
+    clientExtensionResults: {},
   };
 }
 
@@ -64,7 +66,7 @@ describe("passkey register and login", () => {
   });
 
   it("registers a passkey then logs in with createSession", async () => {
-    const { app } = await testApp();
+    const { app, db } = await testApp();
     const cookie = await signup(app);
 
     generateRegistrationOptions.mockResolvedValue({
@@ -101,6 +103,8 @@ describe("passkey register and login", () => {
     });
     expect(verified.status).toBe(200);
 
+    await db.run("UPDATE webauthn_credentials SET counter = ? WHERE credential_id = ?", [9, "cred-1"]);
+
     await app.request("/api/auth/logout", { method: "POST", headers: { Cookie: cookie } });
 
     generateAuthenticationOptions.mockResolvedValue({
@@ -132,6 +136,11 @@ describe("passkey register and login", () => {
       }),
     });
     expect(login.status).toBe(200);
+    expect(verifyAuthenticationResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        credential: expect.objectContaining({ counter: 9 }),
+      }),
+    );
     const session = (login.headers.get("set-cookie") ?? "").split(";")[0];
     expect(session).toMatch(/helix_session=/);
     const me = await app.request("/api/me", { headers: { Cookie: session } });
@@ -146,5 +155,57 @@ describe("passkey register and login", () => {
       body: JSON.stringify({ kind: "register" }),
     });
     expect(res.status).toBe(401);
+  });
+
+  it("rejects a failed assertion", async () => {
+    const { app } = await testApp();
+    const cookie = await signup(app);
+    generateRegistrationOptions.mockResolvedValue({
+      challenge: "reg-chal",
+      rp: { name: "Helix", id: "localhost" },
+      user: { id: "dXNlcg", name: "evan@example.com", displayName: "evan@example.com" },
+      pubKeyCredParams: [],
+    });
+    await app.request("/api/auth/passkey/options", {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "register" }),
+    });
+    verifyRegistrationResponse.mockResolvedValue({
+      verified: true,
+      registrationInfo: {
+        credential: {
+          id: "cred-fail",
+          publicKey: new Uint8Array([1, 2, 3, 4]),
+          counter: 0,
+          transports: ["internal"],
+        },
+      },
+    });
+    await app.request("/api/auth/passkey/verify", {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "register", response: assertion("reg-chal", "cred-fail") }),
+    });
+    generateAuthenticationOptions.mockResolvedValue({
+      challenge: "auth-chal",
+      rpId: "localhost",
+      userVerification: "required",
+    });
+    await app.request("/api/auth/passkey/options", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "authenticate" }),
+    });
+    verifyAuthenticationResponse.mockResolvedValue({
+      verified: false,
+      authenticationInfo: { credentialID: "cred-fail", newCounter: 1, userVerified: false },
+    });
+    const login = await app.request("/api/auth/passkey/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "authenticate", response: assertion("auth-chal", "cred-fail") }),
+    });
+    expect(login.status).toBe(400);
   });
 });

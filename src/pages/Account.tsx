@@ -45,7 +45,11 @@ export function AccountPage() {
       return;
     }
     try {
-      const ok = await registerFaceId({ userId: account.id, email: account.email });
+      const ok = await registerFaceId({
+        userId: account.id,
+        email: account.email,
+        displayName: account.displayName,
+      });
       if (!ok) {
         setMsg("Could not enable Face ID.");
         return;
@@ -61,7 +65,7 @@ export function AccountPage() {
       <h1>You</h1>
       <article className="card" style={{ padding: "8px 18px 18px" }}>
         <p className="muted" style={{ marginTop: 14 }}>
-          {user.email}
+          {user.email ?? user.displayName ?? "Signed in with X"}
         </p>
         <div className="toggle">
           <div>

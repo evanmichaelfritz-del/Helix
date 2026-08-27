@@ -7,7 +7,13 @@ import { insertIdentity } from "../oauth-user.js";
 import { mailerConfigured } from "../origin.js";
 import { DEFAULT_SETTINGS } from "../../shared/types.js";
 
-const emailSchema = z.string().trim().toLowerCase().email().max(320);
+const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email()
+  .max(320)
+  .refine((value) => value.length > 0 && !value.endsWith("@oauth.invalid"));
 const passwordSchema = z.string().min(8).max(200);
 const USER_COLS = "id, email, password_hash, display_name, settings, created_at";
 
@@ -84,14 +90,16 @@ authRoutes.post(
     const db = c.get("db");
     const user = await db.get<UserRow>(`SELECT ${USER_COLS} FROM users WHERE email = ?`, [email]);
     if (user?.password_hash && mailerConfigured()) {
-      const token = newId().replaceAll("-", "") + newId().replaceAll("-", "");
-      const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-      await db.run("INSERT INTO password_resets (id, user_id, expires_at) VALUES (?, ?, ?)", [
-        token,
-        user.id,
-        expires,
-      ]);
-      // Fail-closed: a mailer env is required before any send path is added.
+      const sent = await sendPasswordReset();
+      if (sent) {
+        const token = newId().replaceAll("-", "") + newId().replaceAll("-", "");
+        const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        await db.run("INSERT INTO password_resets (id, user_id, expires_at) VALUES (?, ?, ?)", [
+          token,
+          user.id,
+          expires,
+        ]);
+      }
     }
     return c.json({ ok: true });
   },
@@ -128,3 +136,7 @@ authRoutes.post(
     return c.json({ user: toPublicUser(user) });
   },
 );
+
+async function sendPasswordReset(): Promise<boolean> {
+  return false;
+}

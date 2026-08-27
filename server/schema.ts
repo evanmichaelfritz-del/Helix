@@ -1,7 +1,7 @@
 export const SQLITE_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
-    email TEXT NOT NULL UNIQUE,
+    email TEXT UNIQUE,
     password_hash TEXT,
     display_name TEXT,
     settings TEXT NOT NULL DEFAULT '{}',
@@ -113,7 +113,7 @@ export const SQLITE_SCHEMA = [
 export const POSTGRES_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS users (
     id text PRIMARY KEY,
-    email text NOT NULL UNIQUE,
+    email text UNIQUE,
     password_hash text,
     display_name text,
     settings jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -190,6 +190,7 @@ export const POSTGRES_SCHEMA = [
   `CREATE INDEX IF NOT EXISTS workouts_user_on ON workouts(user_id, logged_on)`,
   `CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id)`,
   `ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`,
+  `ALTER TABLE users ALTER COLUMN email DROP NOT NULL`,
   `CREATE TABLE IF NOT EXISTS identities (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,

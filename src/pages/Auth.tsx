@@ -1,11 +1,6 @@
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import {
-  startAuthentication,
-  startRegistration,
-  type PublicKeyCredentialCreationOptionsJSON,
-  type PublicKeyCredentialRequestOptionsJSON,
-} from "@simplewebauthn/browser";
+import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { ApiError, client } from "../lib/api.ts";
 import { BrandMark, GoogleMark, XMark } from "../components/icons.tsx";
 import { useAppState } from "../lib/state.tsx";
@@ -141,9 +136,7 @@ export function AuthPage(props: { offerSavePasskey?: boolean; onSignedUp?: () =>
     setError(null);
     try {
       const { options } = await client.passkeyOptions("authenticate");
-      const response = await startAuthentication({
-        optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,
-      });
+      const response = await startAuthentication({ optionsJSON: options });
       const result = await client.passkeyVerify("authenticate", response);
       if (result.user) setUser(result.user);
     } catch (err) {
@@ -158,9 +151,7 @@ export function AuthPage(props: { offerSavePasskey?: boolean; onSignedUp?: () =>
     setError(null);
     try {
       const { options } = await client.passkeyOptions("register");
-      const response = await startRegistration({
-        optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
-      });
+      const response = await startRegistration({ optionsJSON: options });
       await client.passkeyVerify("register", response);
       props.onDone?.();
     } catch (err) {

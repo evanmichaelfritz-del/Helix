@@ -50,8 +50,8 @@ webauthnRoutes.post(
       const options = await generateRegistrationOptions({
         rpName: "Helix",
         rpID,
-        userName: user.email,
-        userDisplayName: user.display_name ?? user.email,
+        userName: user.email ?? user.display_name ?? user.id,
+        userDisplayName: user.display_name ?? user.email ?? user.id,
         userID: new TextEncoder().encode(user.id),
         attestationType: "none",
         authenticatorSelection: {
@@ -88,27 +88,25 @@ webauthnRoutes.post(
     }),
   ),
   async (c) => {
-    const { kind, response } = c.req.valid("json");
+    const { kind, response: rawResponse } = c.req.valid("json");
     const db = c.get("db");
-    const challenge = challengeFromClientData(response);
-    if (!challenge) return c.json({ error: "Passkey could not be verified." }, 400);
-    const pending = await db.get<{ id: string; user_id: string | null; challenge: string }>(
-      "SELECT id, user_id, challenge FROM webauthn_challenges WHERE challenge = ? AND kind = ? AND expires_at > ?",
-      [challenge, kind, new Date().toISOString()],
-    );
-    if (!pending) return c.json({ error: "Passkey sign-in expired. Try again." }, 400);
-
-    const expectedOrigin = webauthnOrigins();
-    const expectedRPID = webauthnRpId();
-
     if (kind === "register") {
+      const response = parseRegistrationResponse(rawResponse);
+      if (!response) return c.json({ error: "Passkey could not be verified." }, 400);
+      const challenge = challengeFromClientData(response);
+      if (!challenge) return c.json({ error: "Passkey could not be verified." }, 400);
+      const pending = await db.get<{ id: string; user_id: string | null; challenge: string }>(
+        "SELECT id, user_id, challenge FROM webauthn_challenges WHERE challenge = ? AND kind = ? AND expires_at > ?",
+        [challenge, kind, new Date().toISOString()],
+      );
+      if (!pending) return c.json({ error: "Passkey sign-in expired. Try again." }, 400);
       const user = c.get("user");
       if (!user || pending.user_id !== user.id) return c.json({ error: "unauthorized" }, 401);
       const verified = await verifyRegistrationResponse({
-        response: response as RegistrationResponseJSON,
+        response,
         expectedChallenge: pending.challenge,
-        expectedOrigin,
-        expectedRPID,
+        expectedOrigin: webauthnOrigins(),
+        expectedRPID: webauthnRpId(),
         requireUserVerification: true,
       });
       if (!verified.verified || !verified.registrationInfo) {
@@ -131,18 +129,25 @@ webauthnRoutes.post(
       return c.json({ ok: true, user: toPublicUser(user) });
     }
 
-    const assertion = response as { id?: unknown };
-    const credentialId = typeof assertion.id === "string" ? assertion.id : "";
+    const response = parseAuthenticationResponse(rawResponse);
+    if (!response) return c.json({ error: "Passkey could not be verified." }, 400);
+    const challenge = challengeFromClientData(response);
+    if (!challenge) return c.json({ error: "Passkey could not be verified." }, 400);
+    const pending = await db.get<{ id: string; user_id: string | null; challenge: string }>(
+      "SELECT id, user_id, challenge FROM webauthn_challenges WHERE challenge = ? AND kind = ? AND expires_at > ?",
+      [challenge, kind, new Date().toISOString()],
+    );
+    if (!pending) return c.json({ error: "Passkey sign-in expired. Try again." }, 400);
     const stored = await db.get<CredentialRow>(
       "SELECT id, user_id, credential_id, public_key, counter, transports FROM webauthn_credentials WHERE credential_id = ?",
-      [credentialId],
+      [response.id],
     );
     if (!stored) return c.json({ error: "Passkey could not be verified." }, 400);
     const verified = await verifyAuthenticationResponse({
-      response: response as AuthenticationResponseJSON,
+      response,
       expectedChallenge: pending.challenge,
-      expectedOrigin,
-      expectedRPID,
+      expectedOrigin: webauthnOrigins(),
+      expectedRPID: webauthnRpId(),
       requireUserVerification: true,
       credential: {
         id: stored.credential_id,
@@ -199,13 +204,67 @@ function parseTransports(raw: string | null): AuthenticatorTransportFuture[] | u
   }
 }
 
-function challengeFromClientData(response: unknown): string | null {
-  if (!response || typeof response !== "object" || !("response" in response)) return null;
-  const inner = (response as { response?: { clientDataJSON?: unknown } }).response;
-  const raw = inner?.clientDataJSON;
-  if (typeof raw !== "string") return null;
+function parseRegistrationResponse(raw: unknown): RegistrationResponseJSON | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.id !== "string" || typeof o.rawId !== "string") return null;
+  if (o.type !== undefined && o.type !== "public-key") return null;
+  if (!o.response || typeof o.response !== "object") return null;
+  const resp = o.response as Record<string, unknown>;
+  if (typeof resp.clientDataJSON !== "string" || typeof resp.attestationObject !== "string") return null;
+  const parsed: RegistrationResponseJSON = {
+    id: o.id,
+    rawId: o.rawId,
+    type: "public-key",
+    response: {
+      clientDataJSON: resp.clientDataJSON,
+      attestationObject: resp.attestationObject,
+    },
+    clientExtensionResults:
+      o.clientExtensionResults && typeof o.clientExtensionResults === "object"
+        ? (o.clientExtensionResults as RegistrationResponseJSON["clientExtensionResults"])
+        : {},
+  };
+  return parsed;
+}
+
+function parseAuthenticationResponse(raw: unknown): AuthenticationResponseJSON | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.id !== "string" || typeof o.rawId !== "string") return null;
+  if (o.type !== undefined && o.type !== "public-key") return null;
+  if (!o.response || typeof o.response !== "object") return null;
+  const resp = o.response as Record<string, unknown>;
+  if (
+    typeof resp.clientDataJSON !== "string" ||
+    typeof resp.authenticatorData !== "string" ||
+    typeof resp.signature !== "string"
+  ) {
+    return null;
+  }
+  const parsed: AuthenticationResponseJSON = {
+    id: o.id,
+    rawId: o.rawId,
+    type: "public-key",
+    response: {
+      clientDataJSON: resp.clientDataJSON,
+      authenticatorData: resp.authenticatorData,
+      signature: resp.signature,
+      ...(typeof resp.userHandle === "string" ? { userHandle: resp.userHandle } : {}),
+    },
+    clientExtensionResults:
+      o.clientExtensionResults && typeof o.clientExtensionResults === "object"
+        ? (o.clientExtensionResults as AuthenticationResponseJSON["clientExtensionResults"])
+        : {},
+  };
+  return parsed;
+}
+
+function challengeFromClientData(response: { response: { clientDataJSON: string } }): string | null {
   try {
-    const json = JSON.parse(isoBase64URL.toUTF8String(raw)) as { challenge?: unknown };
+    const json = JSON.parse(isoBase64URL.toUTF8String(response.response.clientDataJSON)) as {
+      challenge?: unknown;
+    };
     return typeof json.challenge === "string" ? json.challenge : null;
   } catch {
     return null;

@@ -18,6 +18,7 @@ export type LinkResult =
   | { ok: false; error: string };
 
 const USER_COLS = "id, email, password_hash, display_name, settings, created_at";
+const GENERIC = "Could not finish sign-in.";
 
 export async function insertIdentity(
   db: Database,
@@ -31,48 +32,53 @@ export async function insertIdentity(
   );
 }
 
-export async function linkOrCreateOAuthUser(db: Database, profile: OAuthProfile): Promise<LinkResult> {
+export async function linkOrCreateOAuthUser(
+  db: Database,
+  profile: OAuthProfile,
+  sessionUser: UserRow | null = null,
+): Promise<LinkResult> {
   const identity = await db.get<{ user_id: string }>(
     "SELECT user_id FROM identities WHERE provider = ? AND provider_user_id = ?",
     [profile.provider, profile.providerUserId],
   );
   if (identity) {
+    if (sessionUser && identity.user_id !== sessionUser.id) return { ok: false, error: GENERIC };
     const user = await db.get<UserRow>(`SELECT ${USER_COLS} FROM users WHERE id = ?`, [identity.user_id]);
     if (!user) return { ok: false, error: "Account is missing." };
     return { ok: true, user, created: false };
   }
 
+  if (sessionUser) {
+    try {
+      await insertIdentity(db, sessionUser.id, profile.provider, profile.providerUserId);
+    } catch {
+      return { ok: false, error: GENERIC };
+    }
+    const user = await db.get<UserRow>(`SELECT ${USER_COLS} FROM users WHERE id = ?`, [sessionUser.id]);
+    if (!user) return { ok: false, error: "Account is missing." };
+    return { ok: true, user, created: false };
+  }
+
   if (profile.provider === "google") {
-    if (!profile.email || !profile.emailVerified) {
+    if (!profile.email || !profile.emailVerified || profile.email.trim().toLowerCase().endsWith("@oauth.invalid")) {
       return { ok: false, error: "Google sign-in needs a verified email." };
     }
     const email = profile.email.trim().toLowerCase();
     const existing = await db.get<UserRow>(`SELECT ${USER_COLS} FROM users WHERE email = ?`, [email]);
-    if (existing) {
-      await insertIdentity(db, existing.id, profile.provider, profile.providerUserId);
-      return { ok: true, user: existing, created: false };
-    }
-    const user = await createOAuthUser(db, {
-      email,
-      displayName: profile.displayName,
-    });
+    if (existing) return { ok: false, error: GENERIC };
+    const user = await createOAuthUser(db, { email, displayName: profile.displayName });
     await insertIdentity(db, user.id, profile.provider, profile.providerUserId);
     return { ok: true, user, created: true };
   }
 
-  // X: identify only by provider_user_id. Never merge onto a password user by email.
-  const email = `x-${profile.providerUserId}@oauth.invalid`;
-  const user = await createOAuthUser(db, {
-    email,
-    displayName: profile.displayName,
-  });
+  const user = await createOAuthUser(db, { email: null, displayName: profile.displayName });
   await insertIdentity(db, user.id, profile.provider, profile.providerUserId);
   return { ok: true, user, created: true };
 }
 
 async function createOAuthUser(
   db: Database,
-  opts: { email: string; displayName: string | null },
+  opts: { email: string | null; displayName: string | null },
 ): Promise<UserRow> {
   const user: UserRow = {
     id: newId(),

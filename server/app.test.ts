@@ -8,6 +8,7 @@ import { createApp } from "./app.js";
 import { createSqliteDb, migrate, type Database } from "./db.js";
 import { linkOrCreateOAuthUser } from "./oauth-user.js";
 import { POSTGRES_SCHEMA, schemaFor } from "./schema.js";
+import { webauthnOrigins } from "./origin.js";
 import { globSync, readFileSync } from "node:fs";
 
 async function testApp() {
@@ -167,6 +168,11 @@ describe("postgres schema", () => {
     expect(pg).toMatch(/password_hash text,/);
     expect(pg).not.toMatch(/password_hash text NOT NULL/);
     expect(pg).toMatch(/ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL/);
+    expect(sqlite).toMatch(/email TEXT UNIQUE/);
+    expect(sqlite).not.toMatch(/email TEXT NOT NULL/);
+    expect(pg).toMatch(/email text UNIQUE/);
+    expect(pg).not.toMatch(/email text NOT NULL UNIQUE/);
+    expect(pg).toMatch(/ALTER TABLE users ALTER COLUMN email DROP NOT NULL/);
     expect(sqlite).toMatch(/CREATE TABLE IF NOT EXISTS identities/);
     expect(pg).toMatch(/CREATE TABLE IF NOT EXISTS identities/);
     expect(sqlite).toMatch(/webauthn_credentials/);
@@ -392,7 +398,10 @@ describe("auth page lock", () => {
     expect(you).toContain("Unlock this device with Face ID");
     expect(you).toContain("Register this device");
     expect(you).toContain("Not available on this device");
+    expect(you).toContain('user.email ?? user.displayName ?? "Signed in with X"');
     expect(you).not.toContain("passkeyOptions");
+    expect(app).toMatch(/client[\s\S]*\.me\(\)/);
+    expect(app).toContain("setUser(r.user)");
   });
 
   it("does not require OAuth-only accounts to set a password on Auth or You", () => {
@@ -425,6 +434,53 @@ describe("auth backend", () => {
     expect(await existing.json()).toEqual({ ok: true });
     const tokens = await db.all("SELECT id FROM password_resets");
     expect(tokens).toEqual([]);
+  });
+
+  it("does not store a reset token when mailer env is set but send does not exist", async () => {
+    const prevFrom = process.env.MAIL_FROM;
+    const prevKey = process.env.RESEND_API_KEY;
+    process.env.MAIL_FROM = "helix@example.com";
+    process.env.RESEND_API_KEY = "re_test";
+    try {
+      const db = await createSqliteDb(":memory:");
+      await migrate(db);
+      const app = createApp(db);
+      await signup(app);
+      const res = await app.request("/api/auth/forgot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "evan@example.com" }),
+      });
+      expect(res.status).toBe(200);
+      expect(await db.all("SELECT id FROM password_resets")).toEqual([]);
+    } finally {
+      if (prevFrom === undefined) delete process.env.MAIL_FROM;
+      else process.env.MAIL_FROM = prevFrom;
+      if (prevKey === undefined) delete process.env.RESEND_API_KEY;
+      else process.env.RESEND_API_KEY = prevKey;
+    }
+  });
+
+  it("rejects empty and synthetic oauth emails on signup, login, and forgot", async () => {
+    const app = await testApp();
+    const signupBad = await app.request("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "x-9@oauth.invalid", password: "password12" }),
+    });
+    const loginBad = await app.request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "x-9@oauth.invalid", password: "password12" }),
+    });
+    const forgotBad = await app.request("/api/auth/forgot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "x-9@oauth.invalid" }),
+    });
+    expect(signupBad.status).toBe(400);
+    expect(loginBad.status).toBe(400);
+    expect(forgotBad.status).toBe(400);
   });
 
   it("401s OAuth-only users with the same password error and does not throw", async () => {
@@ -512,5 +568,35 @@ describe("auth backend", () => {
       if (prevOrigin === undefined) delete process.env.APP_ORIGIN;
       else process.env.APP_ORIGIN = prevOrigin;
     }
+  });
+
+  it("omits localhost origins when the WebAuthn RP ID is prod", () => {
+    const prev = process.env.WEBAUTHN_RP_ID;
+    process.env.WEBAUTHN_RP_ID = "helix-green-one.vercel.app";
+    try {
+      const origins = webauthnOrigins();
+      expect(origins).toEqual(["https://helix-green-one.vercel.app"]);
+    } finally {
+      if (prev === undefined) delete process.env.WEBAUTHN_RP_ID;
+      else process.env.WEBAUTHN_RP_ID = prev;
+    }
+  });
+
+  it("rebuilds sqlite users inside a transaction", () => {
+    const text = readFileSync("server/db.ts", "utf8");
+    expect(text).toMatch(/await db.exec\("BEGIN"\)/);
+    expect(text).toMatch(/await db.exec\("COMMIT"\)/);
+    expect(text).toMatch(/ROLLBACK/);
+  });
+
+  it("pins arctic exactly and keeps UserPublic.email nullable", () => {
+    const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { dependencies: { arctic: string } };
+    expect(pkg.dependencies.arctic).toBe("3.7.0");
+    expect(readFileSync("shared/types.ts", "utf8")).toMatch(/email: string \| null/);
+    const webauthn = readFileSync("server/routes/auth-webauthn.ts", "utf8");
+    expect(webauthn).toContain("parseRegistrationResponse(rawResponse)");
+    expect(webauthn).toContain("parseAuthenticationResponse(rawResponse)");
+    const verifyBlock = webauthn.slice(webauthn.indexOf("verifyRegistrationResponse"));
+    expect(verifyBlock).not.toMatch(/response:\s*rawResponse\s+as /);
   });
 });

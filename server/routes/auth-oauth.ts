@@ -2,11 +2,11 @@ import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { decodeIdToken, generateCodeVerifier, generateState, Google, Twitter } from "arctic";
 import { createSession } from "../auth.js";
-import type { Env } from "../context.js";
+import type { AppContext, Env } from "../context.js";
 import { linkOrCreateOAuthUser, type OAuthProfile } from "../oauth-user.js";
 import { appOrigin } from "../origin.js";
 
-const OAUTH_COOKIE = "helix_oauth";
+export const OAUTH_COOKIE = "helix_oauth";
 const OAUTH_MINUTES = 10;
 
 export const oauthRoutes = new Hono<Env>();
@@ -20,7 +20,7 @@ function missingMessage(provider: "google" | "x"): string {
   return provider === "google" ? "Google sign-in isn't configured." : "X sign-in isn't configured.";
 }
 
-function redirectHome(c: Parameters<typeof appOrigin>[0], created: boolean, error?: string): Response {
+function redirectHome(c: AppContext, created: boolean, error?: string): Response {
   const origin = appOrigin(c);
   const url = new URL(origin);
   if (error) url.searchParams.set("auth_error", error);
@@ -28,7 +28,41 @@ function redirectHome(c: Parameters<typeof appOrigin>[0], created: boolean, erro
   return c.redirect(url.toString());
 }
 
-function oauthClients(c: Parameters<typeof appOrigin>[0], provider: "google" | "x") {
+export function packOAuthCookie(provider: "google" | "x", state: string, verifier: string): string {
+  return encodeURIComponent(JSON.stringify({ provider, state, verifier }));
+}
+
+export function unpackOAuthCookie(
+  raw: string,
+): { provider: "google" | "x"; state: string; verifier: string } | null {
+  try {
+    let text = raw;
+    try {
+      const parsed: unknown = JSON.parse(text);
+      if (isPacked(parsed)) return parsed;
+    } catch {
+      text = decodeURIComponent(raw);
+    }
+    const parsed: unknown = JSON.parse(text);
+    return isPacked(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function isPacked(
+  value: unknown,
+): value is { provider: "google" | "x"; state: string; verifier: string } {
+  if (!value || typeof value !== "object") return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    (obj.provider === "google" || obj.provider === "x") &&
+    typeof obj.state === "string" &&
+    typeof obj.verifier === "string"
+  );
+}
+
+function oauthClients(c: AppContext, provider: "google" | "x") {
   const origin = appOrigin(c);
   if (provider === "google") {
     const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
@@ -50,13 +84,13 @@ function oauthClients(c: Parameters<typeof appOrigin>[0], provider: "google" | "
   };
 }
 
-function startOAuth(c: Parameters<typeof appOrigin>[0], provider: "google" | "x"): Response {
+function startOAuth(c: AppContext, provider: "google" | "x"): Response {
   const ready = oauthClients(c, provider);
   if (!ready.ok) return redirectHome(c, false, ready.error);
   const state = generateState();
   const verifier = generateCodeVerifier();
   const url = ready.client.createAuthorizationURL(state, verifier, ready.scopes);
-  setCookie(c, OAUTH_COOKIE, `${provider}.${state}.${verifier}`, {
+  setCookie(c, OAUTH_COOKIE, packOAuthCookie(provider, state, verifier), {
     httpOnly: true,
     path: "/",
     sameSite: "Lax",
@@ -66,7 +100,7 @@ function startOAuth(c: Parameters<typeof appOrigin>[0], provider: "google" | "x"
   return c.redirect(url.toString());
 }
 
-async function handleCallback(c: Parameters<typeof appOrigin>[0], provider: "google" | "x"): Promise<Response> {
+async function handleCallback(c: AppContext, provider: "google" | "x"): Promise<Response> {
   const denied = c.req.query("error");
   if (denied) {
     deleteCookie(c, OAUTH_COOKIE, { path: "/" });
@@ -77,17 +111,18 @@ async function handleCallback(c: Parameters<typeof appOrigin>[0], provider: "goo
   const code = c.req.query("code");
   const state = c.req.query("state");
   if (!packed || !code || !state) return redirectHome(c, false, "Sign-in expired. Try again.");
-  const [cookieProvider, cookieState, verifier] = packed.split(".");
-  if (cookieProvider !== provider || cookieState !== state || !verifier) {
+  const cookie = unpackOAuthCookie(packed);
+  if (!cookie || cookie.provider !== provider || cookie.state !== state) {
     return redirectHome(c, false, "Sign-in expired. Try again.");
   }
   const ready = oauthClients(c, provider);
   if (!ready.ok) return redirectHome(c, false, ready.error);
   try {
-    const tokens = await ready.client.validateAuthorizationCode(code, verifier);
-    const profile = provider === "google" ? googleProfile(tokens.idToken()) : await xProfile(tokens.accessToken());
+    const tokens = await ready.client.validateAuthorizationCode(code, cookie.verifier);
+    const profile =
+      provider === "google" ? googleProfile(tokens.idToken()) : await xProfile(tokens.accessToken());
     if (!profile.ok) return redirectHome(c, false, profile.error);
-    const linked = await linkOrCreateOAuthUser(c.get("db"), profile.profile);
+    const linked = await linkOrCreateOAuthUser(c.get("db"), profile.profile, c.get("user"));
     if (!linked.ok) return redirectHome(c, false, linked.error);
     await createSession(c, linked.user.id);
     return redirectHome(c, linked.created);
