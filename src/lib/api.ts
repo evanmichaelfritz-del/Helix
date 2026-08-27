@@ -1,5 +1,9 @@
 import type { TodayPayload, UserPublic } from "@shared/types.ts";
 import { todayLocal } from "@shared/types.ts";
+import type {
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+} from "@simplewebauthn/browser";
 
 export class ApiError {
   readonly kind = "api-error";
@@ -39,12 +43,27 @@ async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Pr
   return data as T;
 }
 
+async function passkeyOptions(kind: "register"): Promise<{ options: PublicKeyCredentialCreationOptionsJSON }>;
+async function passkeyOptions(kind: "authenticate"): Promise<{ options: PublicKeyCredentialRequestOptionsJSON }>;
+async function passkeyOptions(kind: "register" | "authenticate") {
+  return api("/api/auth/passkey/options", { method: "POST", json: { kind } });
+}
+
 export const client = {
   signup: (email: string, password: string) =>
     api<{ user: UserPublic }>("/api/auth/signup", { method: "POST", json: { email, password } }),
   login: (email: string, password: string) =>
     api<{ user: UserPublic }>("/api/auth/login", { method: "POST", json: { email, password } }),
   logout: () => api<{ ok: true }>("/api/auth/logout", { method: "POST" }),
+  forgot: (email: string) => api<{ ok: true }>("/api/auth/forgot", { method: "POST", json: { email } }),
+  resetPassword: (token: string, password: string) =>
+    api<{ user: UserPublic }>("/api/auth/reset", { method: "POST", json: { token, password } }),
+  passkeyOptions,
+  passkeyVerify: (kind: "register" | "authenticate", response: unknown) =>
+    api<{ ok?: true; user?: UserPublic }>("/api/auth/passkey/verify", {
+      method: "POST",
+      json: { kind, response },
+    }),
   me: () => api<{ user: UserPublic }>("/api/me"),
   patchMe: (body: {
     displayName?: string | null;

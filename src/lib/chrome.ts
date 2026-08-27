@@ -77,16 +77,21 @@ export function faceIdAvailable(): boolean {
   return typeof window !== "undefined" && typeof window.PublicKeyCredential === "function";
 }
 
-export async function registerFaceId(opts: { userId: string; email: string }): Promise<boolean> {
+export async function registerFaceId(opts: {
+  userId: string;
+  email: string | null;
+  displayName?: string | null;
+}): Promise<boolean> {
   if (!faceIdAvailable()) return false;
+  const userName = opts.email ?? opts.displayName ?? opts.userId;
   const cred = await navigator.credentials.create({
     publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),
       rp: { name: "Helix", id: location.hostname },
       user: {
         id: new TextEncoder().encode(opts.userId),
-        name: opts.email,
-        displayName: opts.email,
+        name: userName,
+        displayName: userName,
       },
       pubKeyCredParams: [
         { type: "public-key", alg: -7 },

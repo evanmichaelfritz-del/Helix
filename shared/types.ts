@@ -60,7 +60,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
 
 export type UserPublic = {
   id: string;
-  email: string;
+  email: string | null;
   displayName: string | null;
   settings: UserSettings;
   createdAt: string;

@@ -24,6 +24,7 @@ function Root() {
   const { user, setUser } = useAppState();
   const [ready, setReady] = useState(false);
   const [locked, setLocked] = useState(false);
+  const [savePasskey, setSavePasskey] = useState(false);
 
   useEffect(() => {
     client
@@ -37,6 +38,9 @@ function Root() {
           Boolean(storedCredentialId(r.user.id)) &&
           sessionStorage.getItem("helix_unlocked") !== "1";
         setLocked(need);
+        if (new URLSearchParams(window.location.search).get("new") === "1") {
+          setSavePasskey(true);
+        }
       })
       .catch((err: unknown) => {
         if (!(err instanceof ApiError) || err.status !== 401) {
@@ -69,7 +73,21 @@ function Root() {
       </div>
     );
   }
-  if (!user) return <AuthPage />;
+  if (!user) return <AuthPage onSignedUp={() => setSavePasskey(true)} />;
+  if (savePasskey) {
+    return (
+      <AuthPage
+        offerSavePasskey
+        onDone={() => {
+          setSavePasskey(false);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("new");
+          url.searchParams.delete("auth_error");
+          window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+        }}
+      />
+    );
+  }
 
   return (
     <>

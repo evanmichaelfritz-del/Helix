@@ -29,6 +29,10 @@ npm run build
 3. Set environment variables:
    - `DATABASE_URL` = the Neon string
    - `SESSION_SECRET` = a long random value (`openssl rand -base64 32`)
+   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` = Google OAuth client (redirect `https://helix-green-one.vercel.app/api/auth/google/callback`)
+   - `X_CLIENT_ID` / `X_CLIENT_SECRET` = X OAuth client (redirect `https://helix-green-one.vercel.app/api/auth/x/callback`)
+   - `WEBAUTHN_RP_ID` = `helix-green-one.vercel.app`
+   - Optional `APP_ORIGIN` = `https://helix-green-one.vercel.app`
 4. Deploy. Hobby is enough. Only `api/index.ts` is a serverless function. The Hono app lives in `server/`. It will not use SQLite on Vercel. On first request it runs a Postgres schema (`jsonb`, `boolean`, `timestamptz`, `double precision`).
 
 PWA name is Helix. Add to Home Screen on your phone after the first deploy.

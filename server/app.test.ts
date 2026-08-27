@@ -6,7 +6,9 @@ import { HELIX_EXPORT_KIND } from "../shared/types.js";
 import { doseSheetMode } from "../shared/dose-sheet.js";
 import { createApp } from "./app.js";
 import { createSqliteDb, migrate, type Database } from "./db.js";
+import { linkOrCreateOAuthUser } from "./oauth-user.js";
 import { POSTGRES_SCHEMA, schemaFor } from "./schema.js";
+import { webauthnOrigins } from "./origin.js";
 import { globSync, readFileSync } from "node:fs";
 
 async function testApp() {
@@ -159,6 +161,22 @@ describe("postgres schema", () => {
     expect(blob).toMatch(/WHERE NOT undone/);
     expect(blob).not.toMatch(/INTEGER NOT NULL DEFAULT 0/);
     expect(schemaFor("sqlite").join("\n")).toMatch(/INTEGER NOT NULL DEFAULT 0/);
+    const sqlite = schemaFor("sqlite").join("\n");
+    const pg = schemaFor("postgres").join("\n");
+    expect(sqlite).toMatch(/password_hash TEXT,/);
+    expect(sqlite).not.toMatch(/password_hash TEXT NOT NULL/);
+    expect(pg).toMatch(/password_hash text,/);
+    expect(pg).not.toMatch(/password_hash text NOT NULL/);
+    expect(pg).toMatch(/ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL/);
+    expect(sqlite).toMatch(/email TEXT UNIQUE/);
+    expect(sqlite).not.toMatch(/email TEXT NOT NULL/);
+    expect(pg).toMatch(/email text UNIQUE/);
+    expect(pg).not.toMatch(/email text NOT NULL UNIQUE/);
+    expect(pg).toMatch(/ALTER TABLE users ALTER COLUMN email DROP NOT NULL/);
+    expect(sqlite).toMatch(/CREATE TABLE IF NOT EXISTS identities/);
+    expect(pg).toMatch(/CREATE TABLE IF NOT EXISTS identities/);
+    expect(sqlite).toMatch(/webauthn_credentials/);
+    expect(pg).toMatch(/webauthn_credentials/);
   });
 });
 
@@ -334,5 +352,251 @@ describe("design scaffold locks", () => {
     expect(today).not.toMatch(/sleepPerf/);
     expect(vitals).not.toMatch(/sleepPerf/);
     expect(you).not.toMatch(/sleepPerf/);
+  });
+});
+
+describe("auth page lock", () => {
+  it("locks login chrome copy and order", () => {
+    const text = readFileSync("src/pages/Auth.tsx", "utf8");
+    expect(text).toContain("Sign in with Face ID");
+    expect(text).toContain("Sign in with passkey");
+    expect(text).toContain("Continue with Google");
+    expect(text).toContain("Continue with X");
+    expect(text).toMatch(/className="auth-or">or</);
+    expect(text).toContain("Forgot password?");
+    expect(text).toContain("Reset your password");
+    expect(text).toContain("Send reset link");
+    expect(text).toContain("Back to log in");
+    expect(text).toContain("If that email has a Helix password, we sent a link");
+    expect(text).toContain("Save a passkey for next time");
+    expect(text).toContain("Save Face ID for next time");
+    expect(text).toContain("isUserVerifyingPlatformAuthenticatorAvailable");
+    const google = text.indexOf("Continue with Google");
+    const x = text.indexOf("Continue with X");
+    const or = text.indexOf(">or<");
+    const forgot = text.indexOf("Forgot password?");
+    expect(google).toBeGreaterThan(0);
+    expect(x).toBeGreaterThan(google);
+    expect(or).toBeGreaterThan(x);
+    expect(forgot).toBeGreaterThan(or);
+    expect(text).not.toMatch(/Apple/);
+    expect(text).not.toMatch(/WebAuthn/);
+    expect(text).not.toMatch(/Twitter/);
+  });
+
+  it("keeps the You Face ID overlay as a client lock", () => {
+    const chrome = readFileSync("src/lib/chrome.ts", "utf8");
+    const app = readFileSync("src/App.tsx", "utf8");
+    const you = readFileSync("src/pages/Account.tsx", "utf8");
+    expect(chrome).toContain("registerFaceId");
+    expect(chrome).toContain("unlockFaceId");
+    expect(chrome).toContain("helix:faceId:");
+    expect(app).toContain("LockScreen");
+    expect(app).toContain("unlockFaceId");
+    expect(you).toContain("registerFaceId");
+    expect(you).toContain("<strong>Face ID</strong>");
+    expect(you).toContain("Unlock this device with Face ID");
+    expect(you).toContain("Register this device");
+    expect(you).toContain("Not available on this device");
+    expect(you).toContain('user.email ?? user.displayName ?? "Signed in with X"');
+    expect(you).not.toContain("passkeyOptions");
+    expect(app).toMatch(/client[\s\S]*\.me\(\)/);
+    expect(app).toContain("setUser(r.user)");
+  });
+
+  it("does not require OAuth-only accounts to set a password on Auth or You", () => {
+    const auth = readFileSync("src/pages/Auth.tsx", "utf8");
+    const you = readFileSync("src/pages/Account.tsx", "utf8");
+    expect(you).not.toMatch(/[Pp]assword/);
+    expect(auth).not.toMatch(/Set a password|Create a password|Add a password|Choose a password/);
+  });
+});
+
+describe("auth backend", () => {
+  it("returns the same generic forgot payload and does not enumerate", async () => {
+    const db = await createSqliteDb(":memory:");
+    await migrate(db);
+    const app = createApp(db);
+    const cookie = await signup(app);
+    const missing = await app.request("/api/auth/forgot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "nobody@example.com" }),
+    });
+    const existing = await app.request("/api/auth/forgot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ email: "evan@example.com" }),
+    });
+    expect(missing.status).toBe(200);
+    expect(existing.status).toBe(200);
+    expect(await missing.json()).toEqual({ ok: true });
+    expect(await existing.json()).toEqual({ ok: true });
+    const tokens = await db.all("SELECT id FROM password_resets");
+    expect(tokens).toEqual([]);
+  });
+
+  it("does not store a reset token when mailer env is set but send does not exist", async () => {
+    const prevFrom = process.env.MAIL_FROM;
+    const prevKey = process.env.RESEND_API_KEY;
+    process.env.MAIL_FROM = "helix@example.com";
+    process.env.RESEND_API_KEY = "re_test";
+    try {
+      const db = await createSqliteDb(":memory:");
+      await migrate(db);
+      const app = createApp(db);
+      await signup(app);
+      const res = await app.request("/api/auth/forgot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "evan@example.com" }),
+      });
+      expect(res.status).toBe(200);
+      expect(await db.all("SELECT id FROM password_resets")).toEqual([]);
+    } finally {
+      if (prevFrom === undefined) delete process.env.MAIL_FROM;
+      else process.env.MAIL_FROM = prevFrom;
+      if (prevKey === undefined) delete process.env.RESEND_API_KEY;
+      else process.env.RESEND_API_KEY = prevKey;
+    }
+  });
+
+  it("rejects empty and synthetic oauth emails on signup, login, and forgot", async () => {
+    const app = await testApp();
+    const signupBad = await app.request("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "x-9@oauth.invalid", password: "password12" }),
+    });
+    const loginBad = await app.request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "x-9@oauth.invalid", password: "password12" }),
+    });
+    const forgotBad = await app.request("/api/auth/forgot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "x-9@oauth.invalid" }),
+    });
+    expect(signupBad.status).toBe(400);
+    expect(loginBad.status).toBe(400);
+    expect(forgotBad.status).toBe(400);
+  });
+
+  it("401s OAuth-only users with the same password error and does not throw", async () => {
+    const db = await createSqliteDb(":memory:");
+    await migrate(db);
+    const app = createApp(db);
+    await db.run(
+      "INSERT INTO users (id, email, password_hash, display_name, settings, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      ["u1", "oauth@example.com", null, null, "{}", new Date().toISOString()],
+    );
+    const res = await app.request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "oauth@example.com", password: "password12" }),
+    });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "Email or password is wrong." });
+  });
+
+  it("lets an OAuth-only user use a session without setting a password", async () => {
+    const db = await createSqliteDb(":memory:");
+    await migrate(db);
+    const app = createApp(db);
+    const linked = await linkOrCreateOAuthUser(db, {
+      provider: "google",
+      providerUserId: "g-you",
+      email: "oauth-you@example.com",
+      emailVerified: true,
+      displayName: null,
+    });
+    expect(linked.ok).toBe(true);
+    if (!linked.ok) return;
+    expect(linked.user.password_hash).toBeNull();
+    await db.run("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)", [
+      "sess-oauth",
+      linked.user.id,
+      new Date(Date.now() + 86400000).toISOString(),
+    ]);
+    const headers = { Cookie: "helix_session=sess-oauth", "Content-Type": "application/json" };
+    const me = await app.request("/api/me", { headers });
+    expect(me.status).toBe(200);
+    const patch = await app.request("/api/me", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ settings: { faceId: true } }),
+    });
+    expect(patch.status).toBe(200);
+    const body = (await patch.json()) as { user: { settings: { faceId: boolean } } };
+    expect(body.user.settings.faceId).toBe(true);
+  });
+
+  it("fail-closes Google and X start when env is missing", async () => {
+    const app = await testApp();
+    const google = await app.request("/api/auth/google");
+    const x = await app.request("/api/auth/x");
+    expect(google.status).toBe(302);
+    expect(x.status).toBe(302);
+    expect(new URL(google.headers.get("location") ?? "").searchParams.get("auth_error")).toBe(
+      "Google sign-in isn't configured.",
+    );
+    expect(new URL(x.headers.get("location") ?? "").searchParams.get("auth_error")).toBe(
+      "X sign-in isn't configured.",
+    );
+  });
+
+  it("starts Google authorize when env is set", async () => {
+    const prevId = process.env.GOOGLE_CLIENT_ID;
+    const prevSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const prevOrigin = process.env.APP_ORIGIN;
+    process.env.GOOGLE_CLIENT_ID = "id.apps.googleusercontent.com";
+    process.env.GOOGLE_CLIENT_SECRET = "secret";
+    process.env.APP_ORIGIN = "https://helix-green-one.vercel.app";
+    try {
+      const app = await testApp();
+      const res = await app.request("/api/auth/google");
+      expect(res.status).toBe(302);
+      const loc = res.headers.get("location") ?? "";
+      expect(loc).toMatch(/accounts\.google\.com/);
+      expect(loc).toContain("helix-green-one.vercel.app%2Fapi%2Fauth%2Fgoogle%2Fcallback");
+    } finally {
+      if (prevId === undefined) delete process.env.GOOGLE_CLIENT_ID;
+      else process.env.GOOGLE_CLIENT_ID = prevId;
+      if (prevSecret === undefined) delete process.env.GOOGLE_CLIENT_SECRET;
+      else process.env.GOOGLE_CLIENT_SECRET = prevSecret;
+      if (prevOrigin === undefined) delete process.env.APP_ORIGIN;
+      else process.env.APP_ORIGIN = prevOrigin;
+    }
+  });
+
+  it("omits localhost origins when the WebAuthn RP ID is prod", () => {
+    const prev = process.env.WEBAUTHN_RP_ID;
+    process.env.WEBAUTHN_RP_ID = "helix-green-one.vercel.app";
+    try {
+      const origins = webauthnOrigins();
+      expect(origins).toEqual(["https://helix-green-one.vercel.app"]);
+    } finally {
+      if (prev === undefined) delete process.env.WEBAUTHN_RP_ID;
+      else process.env.WEBAUTHN_RP_ID = prev;
+    }
+  });
+
+  it("rebuilds sqlite users inside a transaction", () => {
+    const text = readFileSync("server/db.ts", "utf8");
+    expect(text).toMatch(/await db.exec\("BEGIN"\)/);
+    expect(text).toMatch(/await db.exec\("COMMIT"\)/);
+    expect(text).toMatch(/ROLLBACK/);
+  });
+
+  it("pins arctic exactly and keeps UserPublic.email nullable", () => {
+    const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { dependencies: { arctic: string } };
+    expect(pkg.dependencies.arctic).toBe("3.7.0");
+    expect(readFileSync("shared/types.ts", "utf8")).toMatch(/email: string \| null/);
+    const webauthn = readFileSync("server/routes/auth-webauthn.ts", "utf8");
+    expect(webauthn).toContain("parseRegistrationResponse(rawResponse)");
+    expect(webauthn).toContain("parseAuthenticationResponse(rawResponse)");
+    const verifyBlock = webauthn.slice(webauthn.indexOf("verifyRegistrationResponse"));
+    expect(verifyBlock).not.toMatch(/response:\s*rawResponse\s+as /);
   });
 });
