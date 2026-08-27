@@ -20,6 +20,8 @@ export function mapPeptide(row: PeptideRow): Peptide {
     unit: unitOf(row.unit),
     color: row.color,
     lastAmount: num(row.last_amount),
+    bodyEffect: row.body_effect ?? null,
+    expectedResults: row.expected_results ?? null,
     createdAt: row.created_at,
   };
 }
@@ -33,6 +35,9 @@ export function mapVial(row: VialRow): Vial {
     remainingAmount: Number(row.remaining_amount),
     dose: Number(row.dose),
     openedOn: row.opened_on,
+    bacMl: num(row.bac_ml),
+    mixedOn: row.mixed_on ?? null,
+    syringeUnits: Number(row.syringe_units ?? 100) || 100,
     createdAt: row.created_at,
   };
 }

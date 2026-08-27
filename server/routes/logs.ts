@@ -32,7 +32,7 @@ doseRoutes.get("/", async (c) => {
       params.push(to);
     }
   }
-  sql += " ORDER BY logged_at DESC";
+  sql += " ORDER BY logged_on DESC, logged_at DESC";
   const rows = await db.all<DoseRow>(sql, params);
   return c.json({ doses: rows.map(mapDose) });
 });

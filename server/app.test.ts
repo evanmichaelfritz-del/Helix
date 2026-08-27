@@ -9,7 +9,7 @@ import { createSqliteDb, migrate, type Database } from "./db.js";
 import { linkOrCreateOAuthUser } from "./oauth-user.js";
 import { POSTGRES_SCHEMA, schemaFor } from "./schema.js";
 import { webauthnOrigins } from "./origin.js";
-import { activeDoseSql } from "./dialect.js";
+import { activeDoseSql, undoneParam } from "./dialect.js";
 import { globSync, readFileSync } from "node:fs";
 
 async function testApp() {
@@ -429,6 +429,55 @@ describe("doses", () => {
     const list = (await vials.json()) as { vials: Array<{ remainingAmount: number; remainingInjections: number }> };
     expect(list.vials[0].remainingInjections).toBe(9);
   });
+
+  it("lists GET /api/doses by logged_on DESC then logged_at DESC", async () => {
+    const db = await createSqliteDb(":memory:");
+    await migrate(db);
+    const app = createApp(db);
+    const cookie = await signup(app);
+    const headers = { Cookie: cookie, "Content-Type": "application/json" };
+    const created = await app.request("/api/peptides", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Tesamorelin", unit: "mcg" }),
+    });
+    const peptide = ((await created.json()) as { peptide: { id: string } }).peptide;
+    const user = await db.get<{ id: string }>("SELECT id FROM users");
+    expect(user).toBeTruthy();
+    const stamped = "2026-04-15T12:00:00.000Z";
+    const today = "2026-08-27";
+    const rows: Array<[string, string]> = [
+      ["d-apr1", "2026-04-01"],
+      ["d-today", today],
+      ["d-apr2", "2026-04-02"],
+    ];
+    for (const [id, on] of rows) {
+      await db.run(
+        "INSERT INTO doses (id, user_id, peptide_id, vial_id, amount, unit, logged_on, logged_at, undone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [id, user!.id, peptide.id, null, 250, "mcg", on, stamped, undoneParam("sqlite", false)],
+      );
+    }
+    const listed = await app.request("/api/doses", { headers });
+    const body = (await listed.json()) as { doses: Array<{ id: string; loggedOn: string }> };
+    expect(body.doses.map((d) => d.loggedOn)).toEqual([today, "2026-04-02", "2026-04-01"]);
+    expect(body.doses.map((d) => d.id)).toEqual(["d-today", "d-apr2", "d-apr1"]);
+
+    const ranged = await app.request("/api/doses?from=2026-04-01&to=2026-08-27", { headers });
+    const rangeBody = (await ranged.json()) as { doses: Array<{ loggedOn: string }> };
+    expect(rangeBody.doses.map((d) => d.loggedOn)).toEqual([today, "2026-04-02", "2026-04-01"]);
+
+    const logs = readFileSync("server/routes/logs.ts", "utf8");
+    expect(logs).toMatch(/ORDER BY logged_on DESC, logged_at DESC/);
+    expect(logs).not.toMatch(/sql \+= " ORDER BY logged_at DESC"/);
+    expect(readFileSync("server/routes/today.ts", "utf8")).toMatch(
+      /ORDER BY logged_on DESC, logged_at DESC/,
+    );
+    const protocol = readFileSync("src/pages/Protocol.tsx", "utf8");
+    const calendar = readFileSync("src/pages/Calendar.tsx", "utf8");
+    expect(protocol).not.toMatch(/doses\.sort/);
+    expect(protocol).not.toMatch(/\.sort\(/);
+    expect(calendar).not.toMatch(/\.sort\(/);
+  });
 });
 
 describe("dose sheet mode", () => {
@@ -476,6 +525,14 @@ describe("postgres schema", () => {
     expect(pg).toMatch(/email text UNIQUE/);
     expect(pg).not.toMatch(/email text NOT NULL UNIQUE/);
     expect(pg).toMatch(/ALTER TABLE users ALTER COLUMN email DROP NOT NULL/);
+    expect(pg).toMatch(/ALTER TABLE peptides ADD COLUMN IF NOT EXISTS body_effect text/);
+    expect(pg).toMatch(/ALTER TABLE vials ADD COLUMN IF NOT EXISTS bac_ml double precision/);
+    expect(pg).toMatch(/ALTER TABLE vials ADD COLUMN IF NOT EXISTS syringe_units integer NOT NULL DEFAULT 100/);
+    expect(sqlite).toMatch(/body_effect TEXT/);
+    expect(sqlite).toMatch(/bac_ml REAL/);
+    expect(sqlite).toMatch(/syringe_units INTEGER NOT NULL DEFAULT 100/);
+    expect(readFileSync("server/routes/import.ts", "utf8")).not.toMatch(/body_effect|bac_ml|syringe_units|expected_results/);
+    expect(readFileSync("server/db.ts", "utf8")).not.toMatch(/bac_ml|body_effect|syringe_units/);
     expect(sqlite).toMatch(/CREATE TABLE IF NOT EXISTS identities/);
     expect(pg).toMatch(/CREATE TABLE IF NOT EXISTS identities/);
     expect(sqlite).toMatch(/webauthn_credentials/);
@@ -655,6 +712,48 @@ describe("design scaffold locks", () => {
     expect(today).not.toMatch(/sleepPerf/);
     expect(vitals).not.toMatch(/sleepPerf/);
     expect(you).not.toMatch(/sleepPerf/);
+  });
+
+  it("locks calendar month grid, 4-tab dock, and protocol subnav", () => {
+    const calendar = readFileSync("src/pages/Calendar.tsx", "utf8");
+    const protocol = readFileSync("src/pages/Protocol.tsx", "utf8");
+    const shell = readFileSync("src/components/Shell.tsx", "utf8");
+    const sheets = readFileSync("src/components/Sheets.tsx", "utf8");
+    const syringe = readFileSync("src/components/Syringe.tsx", "utf8");
+    expect(calendar).toContain("Color = peptide. W = weight. Tap a day to inspect or log.");
+    expect(calendar).toContain("Nothing logged.");
+    expect(calendar).toMatch(/>\s*Prev\s*</);
+    expect(calendar).toMatch(/>\s*Today\s*</);
+    expect(calendar).toMatch(/>\s*next\s*</);
+    expect(calendar).not.toContain("Desktop rail only in v1");
+    expect(calendar).not.toContain("Codes match your sheet");
+    expect(calendar).not.toMatch(/G1|R2/);
+    expect(calendar).toMatch(/client\.doses\(undefined, \{ from: range\.from, to: range\.to \}\)/);
+    expect(protocol).toMatch(/to="\/protocol\/vials">Vials/);
+    expect(protocol).toMatch(/to="\/calendar">Cal/);
+    expect(protocol).toMatch(/to="\/protocol\/log">Log/);
+    expect(protocol).toMatch(/to="\/protocol\/peptides">Library/);
+    expect(protocol.indexOf("Vials")).toBeLessThan(protocol.indexOf(">Cal<"));
+    expect(protocol).toContain("Vial log");
+    expect(protocol).toContain("Syringe playground");
+    expect(protocol).toContain("Try a mix before it hits the vial log. Numbers update the syringe live.");
+    expect(protocol).toContain("Start new vial");
+    expect(protocol).toContain("No description yet.");
+    expect(protocol).not.toContain("Looking this up");
+    expect(sheets).toContain("Start a vial today?");
+    expect(sheets).toContain("Need peptide, vial amount, BAC, and dose.");
+    expect(sheets).toContain("draw-chip");
+    expect(syringe).toContain("{cap}u");
+    expect(readFileSync("shared/vial-math.ts", "utf8")).toMatch(/SYRINGE_CAPS = \[30, 50, 100\]/);
+    expect(shell).toMatch(/const dock = \[/);
+    expect(shell).toMatch(/to: "\/calendar", label: "Calendar"/);
+    const dockBlock = shell.slice(shell.indexOf("const dock"), shell.indexOf("const rail"));
+    expect(dockBlock).not.toMatch(/\/calendar/);
+    expect(dockBlock.match(/to: "/g)?.length).toBe(4);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/padding: 28px 0 calc\(var\(--dock-h\) \+ 16px\)/);
+    expect(readFileSync("src/pages/Today.tsx", "utf8")).toMatch(/className="fab-wrap"/);
+    expect(readFileSync("api/index.ts", "utf8")).toMatch(/export const GET = handler/);
+    expect(readFileSync("api/index.ts", "utf8")).toMatch(/maxDuration:\s*10/);
   });
 });
 

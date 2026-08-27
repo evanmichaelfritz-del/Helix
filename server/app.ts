@@ -7,6 +7,7 @@ import { peptideRoutes, vialRoutes } from "./routes/catalog.js";
 import type { Env } from "./context.js";
 import type { Database } from "./db.js";
 import { ensureMigrated } from "./db.js";
+import { ensureMixColumns } from "./schema.js";
 import { healthRoutes } from "./routes/health.js";
 import { importRoutes } from "./routes/import.js";
 import { doseRoutes, weighInRoutes, workoutRoutes } from "./routes/logs.js";
@@ -45,6 +46,7 @@ export function createApp(db: Database) {
   app.use("/api/*", async (c, next) => {
     c.set("db", db);
     await ensureMigrated(db);
+    await ensureMixColumns(db);
     await next();
   });
 

@@ -5,6 +5,11 @@ export function formatWeight(kg: number, unit: WeightUnit): string {
   return `${kg.toFixed(1)} kg`;
 }
 
+export function formatWeightChip(kg: number, unit: WeightUnit): string {
+  if (unit === "lb") return `W ${Math.round(kg * 2.20462262)} lb`;
+  return `W ${kg.toFixed(1)} kg`;
+}
+
 export function signedDelta(kg: number, unit: WeightUnit): string {
   const v = unit === "lb" ? kg * 2.20462262 : kg;
   const label = unit === "lb" ? "lb" : "kg";
