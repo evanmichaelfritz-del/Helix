@@ -5,6 +5,8 @@ import { schemaFor } from "./schema.js";
 
 export type SqlValue = string | number | null | bigint | boolean;
 
+export type SqlBatchStatement = { sql: string; params?: SqlValue[] };
+
 export type Database = {
   dialect: "sqlite" | "postgres";
   all: <T>(sql: string, params?: SqlValue[]) => Promise<T[]>;
@@ -16,6 +18,11 @@ export type Database = {
    * Neon HTTP: collect writes, then one `sql.transaction([...])` fetch (non-interactive).
    */
   transaction: <T>(fn: (tx: Database) => Promise<T>) => Promise<T>;
+  /**
+   * One transaction of statements in order. SQLite: BEGIN … COMMIT / ROLLBACK.
+   * Neon HTTP: one `sql.transaction([...])` fetch (no Pool/Client).
+   */
+  batch: (statements: SqlBatchStatement[]) => Promise<unknown[][]>;
 };
 
 export function isPostgresUrl(url: string | undefined): boolean {
@@ -109,10 +116,10 @@ function createNeonDb(url: string): Database {
       const tx: Database = {
         dialect: "postgres",
         all: async () => {
-          throw new Error("Neon HTTP transactions are non-interactive; read before db.transaction()");
+          throw new Error("Neon HTTP transactions are non-interactive; use db.batch([...])");
         },
         get: async () => {
-          throw new Error("Neon HTTP transactions are non-interactive; read before db.transaction()");
+          throw new Error("Neon HTTP transactions are non-interactive; use db.batch([...])");
         },
         run: async (query, params = []) => {
           queued.push({ query, params });
@@ -124,6 +131,9 @@ function createNeonDb(url: string): Database {
         transaction: async () => {
           throw new Error("Nested transactions are not supported");
         },
+        batch: async () => {
+          throw new Error("Nested batch is not supported");
+        },
       };
       const result = await fn(tx);
       if (queued.length > 0) {
@@ -132,6 +142,13 @@ function createNeonDb(url: string): Database {
         );
       }
       return result;
+    },
+    async batch(statements) {
+      if (statements.length === 0) return [];
+      const results = await sql.transaction((txn) =>
+        statements.map((item) => txn.query(toPg(item.sql), item.params ?? [])),
+      );
+      return results as unknown[][];
     },
   };
   return db;
@@ -179,6 +196,16 @@ export async function createSqliteDb(url: string): Promise<Database> {
         }
         throw err;
       }
+    },
+    async batch(statements) {
+      if (statements.length === 0) return [];
+      return db.transaction(async (tx) => {
+        const results: unknown[][] = [];
+        for (const item of statements) {
+          results.push(await tx.all(item.sql, item.params ?? []));
+        }
+        return results;
+      });
     },
   };
   return db;

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { newId, requireUser } from "../auth.js";
-import type { Env, HealthDayRow, PeptideRow } from "../context.js";
+import type { Env, PeptideRow } from "../context.js";
 import type { Database, SqlValue } from "../db.js";
 import { parseLocalDate, PEPTIDE_COLORS, PEPTIDE_UNITS } from "../../shared/types.js";
 import { activeDoseSql, undoneParam } from "../dialect.js";
@@ -76,6 +76,7 @@ const recordsSchema = z.object({
 });
 
 type RecordsBody = z.infer<typeof recordsSchema>;
+type Statement = { sql: string; params: SqlValue[] };
 
 const SQLITE_SAFE_VARS = 900;
 
@@ -86,87 +87,49 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
-async function multiInsert(
-  tx: Database,
-  table: string,
+function valuesSql(rowCount: number, colCount: number): string {
+  const one = `(${Array.from({ length: colCount }, () => "?").join(", ")})`;
+  return Array.from({ length: rowCount }, () => one).join(", ");
+}
+
+function unionFrom(columns: string[], rows: SqlValue[][]): { sql: string; params: SqlValue[] } {
+  const parts = rows.map((_, i) =>
+    i === 0
+      ? `SELECT ${columns.map((col) => `? AS ${col}`).join(", ")}`
+      : `SELECT ${columns.map(() => "?").join(", ")}`,
+  );
+  return { sql: parts.join(" UNION ALL "), params: rows.flat() };
+}
+
+function pushValues(
+  statements: Statement[],
+  sqlHead: string,
+  columnsPerRow: number,
+  rows: SqlValue[][],
+  sqlTail = "",
+): void {
+  if (rows.length === 0) return;
+  const maxRows = Math.max(1, Math.floor(SQLITE_SAFE_VARS / columnsPerRow));
+  for (const part of chunk(rows, maxRows)) {
+    statements.push({
+      sql: `${sqlHead} ${valuesSql(part.length, columnsPerRow)}${sqlTail}`,
+      params: part.flat(),
+    });
+  }
+}
+
+function pushUnionInsert(
+  statements: Statement[],
+  sqlBefore: string,
   columns: string[],
   rows: SqlValue[][],
-): Promise<void> {
+  sqlAfter: string,
+): void {
   if (rows.length === 0) return;
   const maxRows = Math.max(1, Math.floor(SQLITE_SAFE_VARS / columns.length));
-  const colSql = columns.join(", ");
-  const one = `(${columns.map(() => "?").join(", ")})`;
   for (const part of chunk(rows, maxRows)) {
-    await tx.run(
-      `INSERT INTO ${table} (${colSql}) VALUES ${part.map(() => one).join(", ")}`,
-      part.flat(),
-    );
-  }
-}
-
-async function bulkUpdateHealthDays(
-  tx: Database,
-  rows: Array<{
-    id: string;
-    whoop_recovery: SqlValue;
-    garmin_body_battery: SqlValue;
-    sleep_hours: SqlValue;
-    strain: SqlValue;
-    steps: SqlValue;
-    source: string;
-  }>,
-): Promise<void> {
-  if (rows.length === 0) return;
-  const maxRows = Math.max(1, Math.floor(SQLITE_SAFE_VARS / 13));
-  for (const part of chunk(rows, maxRows)) {
-    const params: SqlValue[] = [];
-    const caseSql = (values: SqlValue[]) => {
-      const bits: string[] = [];
-      for (let i = 0; i < part.length; i++) {
-        bits.push("WHEN ? THEN ?");
-        params.push(part[i].id, values[i]);
-      }
-      return `CASE id ${bits.join(" ")} END`;
-    };
-    const whoop = caseSql(part.map((row) => row.whoop_recovery));
-    const garmin = caseSql(part.map((row) => row.garmin_body_battery));
-    const sleep = caseSql(part.map((row) => row.sleep_hours));
-    const strain = caseSql(part.map((row) => row.strain));
-    const steps = caseSql(part.map((row) => row.steps));
-    const source = caseSql(part.map((row) => row.source));
-    params.push(...part.map((row) => row.id));
-    await tx.run(
-      `UPDATE health_days SET
-        whoop_recovery = ${whoop},
-        garmin_body_battery = ${garmin},
-        sleep_hours = ${sleep},
-        strain = ${strain},
-        steps = ${steps},
-        source = ${source}
-       WHERE id IN (${part.map(() => "?").join(", ")})`,
-      params,
-    );
-  }
-}
-
-async function bulkUpdateWeighIns(
-  tx: Database,
-  rows: Array<{ id: string; kg: number }>,
-): Promise<void> {
-  if (rows.length === 0) return;
-  const maxRows = Math.max(1, Math.floor(SQLITE_SAFE_VARS / 3));
-  for (const part of chunk(rows, maxRows)) {
-    const params: SqlValue[] = [];
-    const bits: string[] = [];
-    for (const row of part) {
-      bits.push("WHEN ? THEN ?");
-      params.push(row.id, row.kg);
-    }
-    params.push(...part.map((row) => row.id));
-    await tx.run(
-      `UPDATE weigh_ins SET kg = CASE id ${bits.join(" ")} END WHERE id IN (${part.map(() => "?").join(", ")})`,
-      params,
-    );
+    const from = unionFrom(columns, part);
+    statements.push({ sql: `${sqlBefore}${from.sql}${sqlAfter}`, params: from.params });
   }
 }
 
@@ -198,138 +161,49 @@ async function importRecords(
   const incomingPeptides = body.peptides ?? [];
   const incomingVials = body.vials ?? [];
   const incomingDoses = body.doses ?? [];
+  const undone = undoneParam(db.dialect, false);
+  const activeDose = activeDoseSql(db.dialect);
 
-  const existingPeptides = await db.all<PeptideRow>(
-    "SELECT * FROM peptides WHERE user_id = ?",
-    [userId],
-  );
-  const existingDoses =
-    incomingDoses.length > 0
-      ? await db.all<{ peptide_id: string; logged_on: string }>(
-          `SELECT peptide_id, logged_on FROM doses WHERE user_id = ? AND ${activeDoseSql(db.dialect)}`,
-          [userId],
-        )
-      : [];
-  const existingWeighIns =
-    body.weighIns.length > 0
-      ? await db.all<{ id: string; logged_on: string }>(
-          "SELECT id, logged_on FROM weigh_ins WHERE user_id = ?",
-          [userId],
-        )
-      : [];
-  const existingHealthDays =
-    body.healthDays.length > 0
-      ? await db.all<HealthDayRow>("SELECT * FROM health_days WHERE user_id = ?", [userId])
-      : [];
-  const existingWorkouts =
-    body.workouts.length > 0
-      ? await db.all<{ logged_on: string; name: string }>(
-          "SELECT logged_on, name FROM workouts WHERE user_id = ?",
-          [userId],
-        )
-      : [];
-
-  const peptideIds = new Map<string, string>();
-  for (const p of existingPeptides) peptideIds.set(p.name.toLowerCase(), p.id);
-  const doseKeys = new Set(existingDoses.map((d) => `${d.peptide_id}\0${d.logged_on}`));
-  const weighByDay = new Map(existingWeighIns.map((w) => [w.logged_on, w.id]));
-  const healthByDay = new Map(existingHealthDays.map((d) => [d.logged_on, d]));
-  const workoutKeys = new Set(existingWorkouts.map((w) => `${w.logged_on}\0${w.name}`));
-
-  const peptideInserts: SqlValue[][] = [];
-  let colorIdx = existingPeptides.length;
-  let peptides = 0;
+  const uniquePeptides: SqlValue[][] = [];
+  const seenPeptide = new Set<string>();
   for (const p of incomingPeptides) {
     const key = p.name.toLowerCase();
-    if (peptideIds.has(key)) {
+    if (seenPeptide.has(key)) {
       warnings.push(`Skipped peptide already in Helix: ${p.name}`);
       continue;
     }
-    const id = newId();
-    peptideIds.set(key, id);
-    peptideInserts.push([
-      id,
+    seenPeptide.add(key);
+    uniquePeptides.push([
+      newId(),
       userId,
       p.name,
       p.unit,
-      p.color ?? PEPTIDE_COLORS[colorIdx % PEPTIDE_COLORS.length],
+      p.color ?? PEPTIDE_COLORS[uniquePeptides.length % PEPTIDE_COLORS.length],
       p.lastAmount ?? null,
       now,
     ]);
-    colorIdx += 1;
-    peptides += 1;
   }
 
-  const healthUpdates: Array<{
-    id: string;
-    whoop_recovery: SqlValue;
-    garmin_body_battery: SqlValue;
-    sleep_hours: SqlValue;
-    strain: SqlValue;
-    steps: SqlValue;
-    source: string;
-  }> = [];
-  const healthInserts: SqlValue[][] = [];
-  const pendingHealth = new Map<
+  const healthByDay = new Map<
     string,
-    { kind: "update"; row: (typeof healthUpdates)[number] } | { kind: "insert"; row: SqlValue[] }
+    {
+      id: string;
+      whoop_recovery: SqlValue;
+      garmin_body_battery: SqlValue;
+      sleep_hours: SqlValue;
+      strain: SqlValue;
+      steps: SqlValue;
+      source: string;
+    }
   >();
   let healthDays = 0;
   for (const day of body.healthDays) {
     if (!parseLocalDate(day.loggedOn)) continue;
     healthDays += 1;
-    const pending = pendingHealth.get(day.loggedOn);
-    const existing = healthByDay.get(day.loggedOn);
-    if (pending?.kind === "update") {
-      pending.row.whoop_recovery = day.whoopRecovery ?? pending.row.whoop_recovery;
-      pending.row.garmin_body_battery = day.garminBodyBattery ?? pending.row.garmin_body_battery;
-      pending.row.sleep_hours = day.sleepHours ?? pending.row.sleep_hours;
-      pending.row.strain = day.strain ?? pending.row.strain;
-      pending.row.steps = day.steps ?? pending.row.steps;
-      pending.row.source = body.source;
-      continue;
-    }
-    if (pending?.kind === "insert") {
-      const row = pending.row;
-      row[3] = day.whoopRecovery ?? row[3];
-      row[4] = day.garminBodyBattery ?? row[4];
-      row[5] = day.sleepHours ?? row[5];
-      row[6] = day.strain ?? row[6];
-      row[7] = day.steps ?? row[7];
-      row[8] = body.source;
-      continue;
-    }
-    if (existing) {
-      const update = {
-        id: existing.id,
-        whoop_recovery: day.whoopRecovery ?? existing.whoop_recovery,
-        garmin_body_battery: day.garminBodyBattery ?? existing.garmin_body_battery,
-        sleep_hours: day.sleepHours ?? existing.sleep_hours,
-        strain: day.strain ?? existing.strain,
-        steps: day.steps ?? existing.steps,
-        source: body.source,
-      };
-      healthUpdates.push(update);
-      pendingHealth.set(day.loggedOn, { kind: "update", row: update });
-    } else {
-      const id = newId();
-      const row: SqlValue[] = [
-        id,
-        userId,
-        day.loggedOn,
-        day.whoopRecovery ?? null,
-        day.garminBodyBattery ?? null,
-        day.sleepHours ?? null,
-        day.strain ?? null,
-        day.steps ?? null,
-        body.source,
-      ];
-      healthInserts.push(row);
-      pendingHealth.set(day.loggedOn, { kind: "insert", row });
+    const prev = healthByDay.get(day.loggedOn);
+    if (!prev) {
       healthByDay.set(day.loggedOn, {
-        id,
-        user_id: userId,
-        logged_on: day.loggedOn,
+        id: newId(),
         whoop_recovery: day.whoopRecovery ?? null,
         garmin_body_battery: day.garminBodyBattery ?? null,
         sleep_hours: day.sleepHours ?? null,
@@ -337,16 +211,34 @@ async function importRecords(
         steps: day.steps ?? null,
         source: body.source,
       });
+    } else {
+      prev.whoop_recovery = day.whoopRecovery ?? prev.whoop_recovery;
+      prev.garmin_body_battery = day.garminBodyBattery ?? prev.garmin_body_battery;
+      prev.sleep_hours = day.sleepHours ?? prev.sleep_hours;
+      prev.strain = day.strain ?? prev.strain;
+      prev.steps = day.steps ?? prev.steps;
+      prev.source = body.source;
     }
   }
+  const healthRows = [...healthByDay.entries()].map(([loggedOn, row]) => [
+    row.id,
+    userId,
+    loggedOn,
+    row.whoop_recovery,
+    row.garmin_body_battery,
+    row.sleep_hours,
+    row.strain,
+    row.steps,
+    row.source,
+  ]);
 
-  const workoutInserts: SqlValue[][] = [];
-  let workouts = 0;
+  const workoutRows: SqlValue[][] = [];
+  const seenWorkout = new Set<string>();
   for (const w of body.workouts) {
     const key = `${w.loggedOn}\0${w.name}`;
-    if (workoutKeys.has(key)) continue;
-    workoutKeys.add(key);
-    workoutInserts.push([
+    if (seenWorkout.has(key)) continue;
+    seenWorkout.add(key);
+    workoutRows.push([
       newId(),
       userId,
       w.loggedOn,
@@ -356,50 +248,22 @@ async function importRecords(
       body.source,
       now,
     ]);
-    workouts += 1;
   }
 
-  const weighUpdates: Array<{ id: string; kg: number }> = [];
-  const weighInserts: SqlValue[][] = [];
-  const pendingWeigh = new Map<string, { kind: "update"; row: { id: string; kg: number } } | { kind: "insert"; row: SqlValue[] }>();
+  const weighByDay = new Map<string, SqlValue[]>();
   let weighIns = 0;
   for (const w of body.weighIns) {
     weighIns += 1;
-    const pending = pendingWeigh.get(w.loggedOn);
-    if (pending?.kind === "update") {
-      pending.row.kg = w.kg;
-      continue;
-    }
-    if (pending?.kind === "insert") {
-      pending.row[2] = w.kg;
-      continue;
-    }
-    const existingId = weighByDay.get(w.loggedOn);
-    if (existingId) {
-      const row = { id: existingId, kg: w.kg };
-      weighUpdates.push(row);
-      pendingWeigh.set(w.loggedOn, { kind: "update", row });
-    } else {
-      const id = newId();
-      const row: SqlValue[] = [id, userId, w.kg, w.loggedOn, now];
-      weighInserts.push(row);
-      pendingWeigh.set(w.loggedOn, { kind: "insert", row });
-      weighByDay.set(w.loggedOn, id);
-    }
+    weighByDay.set(w.loggedOn, [newId(), userId, w.kg, w.loggedOn, now]);
   }
+  const weighRows = [...weighByDay.values()];
 
-  const vialInserts: SqlValue[][] = [];
-  let vials = 0;
+  const vialRows: SqlValue[][] = [];
   for (const v of incomingVials) {
-    const peptideId = peptideIds.get(v.peptideName.toLowerCase());
-    if (!peptideId) {
-      warnings.push(`Skipped vial for unknown peptide: ${v.peptideName}`);
-      continue;
-    }
-    vialInserts.push([
+    vialRows.push([
       newId(),
       userId,
-      peptideId,
+      v.peptideName,
       v.label ?? null,
       v.totalAmount,
       v.remainingAmount,
@@ -407,99 +271,167 @@ async function importRecords(
       v.openedOn ?? null,
       now,
     ]);
-    vials += 1;
   }
 
-  const doseInserts: SqlValue[][] = [];
-  let doses = 0;
+  const doseRows: SqlValue[][] = [];
+  const seenDose = new Set<string>();
   for (const d of incomingDoses) {
-    const peptideId = peptideIds.get(d.peptideName.toLowerCase());
-    if (!peptideId) {
-      warnings.push(`Skipped dose for unknown peptide: ${d.peptideName}`);
-      continue;
-    }
-    const key = `${peptideId}\0${d.loggedOn}`;
-    if (doseKeys.has(key)) continue;
-    doseKeys.add(key);
-    doseInserts.push([
+    const key = `${d.peptideName.toLowerCase()}\0${d.loggedOn}`;
+    if (seenDose.has(key)) continue;
+    seenDose.add(key);
+    doseRows.push([
       newId(),
       userId,
-      peptideId,
-      null,
+      d.peptideName,
       d.amount,
       d.unit,
       d.loggedOn,
       d.loggedAt ?? now,
-      undoneParam(db.dialect, false),
+      undone,
     ]);
-    doses += 1;
   }
 
-  await db.transaction(async (tx) => {
-    await bulkUpdateHealthDays(tx, healthUpdates);
-    await multiInsert(
-      tx,
-      "health_days",
-      [
-        "id",
-        "user_id",
-        "logged_on",
-        "whoop_recovery",
-        "garmin_body_battery",
-        "sleep_hours",
-        "strain",
-        "steps",
-        "source",
-      ],
-      healthInserts,
-    );
-    await multiInsert(
-      tx,
-      "workouts",
-      ["id", "user_id", "logged_on", "name", "duration_min", "strain", "source", "created_at"],
-      workoutInserts,
-    );
-    await bulkUpdateWeighIns(tx, weighUpdates);
-    await multiInsert(tx, "weigh_ins", ["id", "user_id", "kg", "logged_on", "created_at"], weighInserts);
-    await multiInsert(
-      tx,
-      "peptides",
-      ["id", "user_id", "name", "unit", "color", "last_amount", "created_at"],
-      peptideInserts,
-    );
-    await multiInsert(
-      tx,
-      "vials",
-      [
-        "id",
-        "user_id",
-        "peptide_id",
-        "label",
-        "total_amount",
-        "remaining_amount",
-        "dose",
-        "opened_on",
-        "created_at",
-      ],
-      vialInserts,
-    );
-    await multiInsert(
-      tx,
-      "doses",
-      [
-        "id",
-        "user_id",
-        "peptide_id",
-        "vial_id",
-        "amount",
-        "unit",
-        "logged_on",
-        "logged_at",
-        "undone",
-      ],
-      doseInserts,
-    );
-  });
+  const statements: Statement[] = [
+    { sql: "SELECT * FROM peptides WHERE user_id = ?", params: [userId] },
+    {
+      sql: `SELECT peptide_id, logged_on FROM doses WHERE user_id = ? AND ${activeDose}`,
+      params: [userId],
+    },
+    { sql: "SELECT id, logged_on FROM weigh_ins WHERE user_id = ?", params: [userId] },
+    { sql: "SELECT * FROM health_days WHERE user_id = ?", params: [userId] },
+    { sql: "SELECT logged_on, name FROM workouts WHERE user_id = ?", params: [userId] },
+  ];
+
+  pushValues(
+    statements,
+    `INSERT INTO health_days (id, user_id, logged_on, whoop_recovery, garmin_body_battery, sleep_hours, strain, steps, source) VALUES`,
+    9,
+    healthRows,
+    ` ON CONFLICT (user_id, logged_on) DO UPDATE SET
+        whoop_recovery = COALESCE(excluded.whoop_recovery, health_days.whoop_recovery),
+        garmin_body_battery = COALESCE(excluded.garmin_body_battery, health_days.garmin_body_battery),
+        sleep_hours = COALESCE(excluded.sleep_hours, health_days.sleep_hours),
+        strain = COALESCE(excluded.strain, health_days.strain),
+        steps = COALESCE(excluded.steps, health_days.steps),
+        source = excluded.source`,
+  );
+  pushUnionInsert(
+    statements,
+    `INSERT INTO workouts (id, user_id, logged_on, name, duration_min, strain, source, created_at)
+     SELECT id, user_id, logged_on, name, duration_min, strain, source, created_at FROM (`,
+    ["id", "user_id", "logged_on", "name", "duration_min", "strain", "source", "created_at"],
+    workoutRows,
+    `) AS incoming
+     WHERE NOT EXISTS (
+       SELECT 1 FROM workouts w
+       WHERE w.user_id = incoming.user_id AND w.logged_on = incoming.logged_on AND w.name = incoming.name
+     )`,
+  );
+  pushValues(
+    statements,
+    `INSERT INTO weigh_ins (id, user_id, kg, logged_on, created_at) VALUES`,
+    5,
+    weighRows,
+    ` ON CONFLICT (user_id, logged_on) DO UPDATE SET kg = excluded.kg`,
+  );
+  pushUnionInsert(
+    statements,
+    `INSERT INTO peptides (id, user_id, name, unit, color, last_amount, created_at)
+     SELECT id, user_id, name, unit, color, last_amount, created_at FROM (`,
+    ["id", "user_id", "name", "unit", "color", "last_amount", "created_at"],
+    uniquePeptides,
+    `) AS incoming
+     WHERE NOT EXISTS (
+       SELECT 1 FROM peptides p
+       WHERE p.user_id = incoming.user_id AND lower(p.name) = lower(incoming.name)
+     )`,
+  );
+  pushUnionInsert(
+    statements,
+    `INSERT INTO vials (id, user_id, peptide_id, label, total_amount, remaining_amount, dose, opened_on, created_at)
+     SELECT incoming.id, incoming.user_id, p.id, incoming.label, incoming.total_amount, incoming.remaining_amount, incoming.dose, incoming.opened_on, incoming.created_at
+     FROM (`,
+    [
+      "id",
+      "user_id",
+      "peptide_name",
+      "label",
+      "total_amount",
+      "remaining_amount",
+      "dose",
+      "opened_on",
+      "created_at",
+    ],
+    vialRows,
+    `) AS incoming
+     INNER JOIN peptides p ON p.user_id = incoming.user_id AND lower(p.name) = lower(incoming.peptide_name)`,
+  );
+  pushUnionInsert(
+    statements,
+    `INSERT INTO doses (id, user_id, peptide_id, vial_id, amount, unit, logged_on, logged_at, undone)
+     SELECT incoming.id, incoming.user_id, p.id, NULL, incoming.amount, incoming.unit, incoming.logged_on, incoming.logged_at, incoming.undone
+     FROM (`,
+    ["id", "user_id", "peptide_name", "amount", "unit", "logged_on", "logged_at", "undone"],
+    doseRows,
+    `) AS incoming
+     INNER JOIN peptides p ON p.user_id = incoming.user_id AND lower(p.name) = lower(incoming.peptide_name)
+     WHERE NOT EXISTS (
+       SELECT 1 FROM doses d
+       WHERE d.user_id = incoming.user_id AND d.peptide_id = p.id AND d.logged_on = incoming.logged_on AND ${activeDose}
+     )`,
+  );
+
+  const results = await db.batch(statements);
+  const existingPeptides = (results[0] ?? []) as PeptideRow[];
+  const existingDoses = (results[1] ?? []) as Array<{ peptide_id: string; logged_on: string }>;
+  const existingWorkouts = (results[4] ?? []) as Array<{ logged_on: string; name: string }>;
+
+  const existingPeptideNames = new Set(existingPeptides.map((p) => p.name.toLowerCase()));
+  const peptideIdName = new Map(existingPeptides.map((p) => [p.id, p.name.toLowerCase()]));
+  const existingDoseKeys = new Set(
+    existingDoses.map((d) => `${peptideIdName.get(d.peptide_id) ?? d.peptide_id}\0${d.logged_on}`),
+  );
+  const existingWorkoutKeys = new Set(existingWorkouts.map((w) => `${w.logged_on}\0${w.name}`));
+  const knownPeptides = new Set(existingPeptideNames);
+  for (const row of uniquePeptides) knownPeptides.add(String(row[2]).toLowerCase());
+
+  let peptides = 0;
+  for (const row of uniquePeptides) {
+    const name = String(row[2]);
+    if (existingPeptideNames.has(name.toLowerCase())) {
+      warnings.push(`Skipped peptide already in Helix: ${name}`);
+    } else {
+      peptides += 1;
+    }
+  }
+
+  let workouts = 0;
+  for (const row of workoutRows) {
+    if (!existingWorkoutKeys.has(`${row[2]}\0${row[3]}`)) workouts += 1;
+  }
+
+  let vials = 0;
+  for (const v of incomingVials) {
+    if (!knownPeptides.has(v.peptideName.toLowerCase())) {
+      warnings.push(`Skipped vial for unknown peptide: ${v.peptideName}`);
+      continue;
+    }
+    vials += 1;
+  }
+
+  let doses = 0;
+  const countedDose = new Set<string>();
+  for (const d of incomingDoses) {
+    const nameKey = d.peptideName.toLowerCase();
+    if (!knownPeptides.has(nameKey)) {
+      warnings.push(`Skipped dose for unknown peptide: ${d.peptideName}`);
+      continue;
+    }
+    const key = `${nameKey}\0${d.loggedOn}`;
+    if (countedDose.has(key) || existingDoseKeys.has(key)) continue;
+    countedDose.add(key);
+    doses += 1;
+  }
 
   return {
     healthDays,

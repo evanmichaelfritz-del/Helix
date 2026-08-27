@@ -151,6 +151,18 @@ function wrapDb(
       return db.exec(sql);
     },
     transaction: (fn) => db.transaction((tx) => fn(wrap(tx))),
+    batch: async (statements) => {
+      for (const statement of statements) sqls.push(statement.sql);
+      if (!interceptRun) return db.batch(statements);
+      return inner.transaction(async () => {
+        for (const statement of statements) {
+          await interceptRun(statement.sql, (sql, params) =>
+            inner.run(sql, params ?? statement.params ?? []),
+          );
+        }
+        return [];
+      });
+    },
   });
   return { db: wrap(inner), sqls };
 }
@@ -179,11 +191,11 @@ describe("import records batch", () => {
       doses: 69,
       warnings: [],
     });
-    expect(sqls.filter((sql) => /SELECT\b/i.test(sql) && /\bFROM doses\b/i.test(sql))).toHaveLength(1);
+    expect(sqls.filter((sql) => /^\s*SELECT\b/i.test(sql) && /\bFROM doses\b/i.test(sql))).toHaveLength(1);
     expect(sqls.some((sql) => /peptide_id = \? AND logged_on = \?/.test(sql))).toBe(false);
     const doseInserts = sqls.filter((sql) => /INSERT INTO doses/i.test(sql));
     expect(doseInserts).toHaveLength(1);
-    expect(doseInserts[0]).toMatch(/VALUES\s*\([^)]+\)\s*,\s*\(/);
+    expect(doseInserts[0]).toMatch(/UNION ALL/);
     expect(await raw.all("SELECT id FROM doses")).toHaveLength(69);
     expect(await raw.all("SELECT id FROM peptides")).toHaveLength(4);
     expect(await raw.all("SELECT id FROM vials")).toHaveLength(4);
@@ -301,9 +313,9 @@ describe("import records batch", () => {
   it("batches writes in one transaction without COPY or a second function", () => {
     const text = readFileSync("server/routes/import.ts", "utf8");
     const db = readFileSync("server/db.ts", "utf8");
-    expect(text).toMatch(/db\.transaction/);
-    expect(text).toMatch(/INSERT INTO \$\{table\} \(\$\{colSql\}\) VALUES/);
-    expect(text).toMatch(/multiInsert\(\s*tx,\s*"doses"/);
+    expect(text).toMatch(/db\.batch/);
+    expect(text).toMatch(/INSERT INTO doses \([^)]+\)/);
+    expect(text).toMatch(/UNION ALL/);
     expect(text).not.toMatch(/\bCOPY\b/);
     expect(text).not.toMatch(/SELECT id FROM doses WHERE user_id = \? AND peptide_id/);
     expect(db).toMatch(/sql\.transaction/);
@@ -382,6 +394,7 @@ describe("postgres schema", () => {
         statements.push(sql);
       },
       transaction: async (fn) => fn(db),
+      batch: async () => [],
     };
     await migrate(db);
     expect(statements).toEqual(POSTGRES_SCHEMA);
