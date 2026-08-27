@@ -245,7 +245,10 @@ export function AuthPage(props: { offerSavePasskey?: boolean; onSignedUp?: () =>
                   type="button"
                   className={mode === "login" ? "on" : undefined}
                   disabled={disabled}
-                  onClick={() => setMode("login")}
+                  onClick={() => {
+                    setMode("login");
+                    setError(null);
+                  }}
                 >
                   Log in
                 </button>
@@ -253,7 +256,10 @@ export function AuthPage(props: { offerSavePasskey?: boolean; onSignedUp?: () =>
                   type="button"
                   className={mode === "signup" ? "on" : undefined}
                   disabled={disabled}
-                  onClick={() => setMode("signup")}
+                  onClick={() => {
+                    setMode("signup");
+                    setError(null);
+                  }}
                 >
                   Sign up
                 </button>
