@@ -1,6 +1,9 @@
 import { emptyRecords } from "./empty.js";
 import type { ParseResult } from "./result.js";
 
+/** Keep in lockstep with recordsSchema healthDays.max / workouts.max (Hobby 10s). */
+export const WHOOP_IMPORT_CAP = 400;
+
 type DayAcc = {
   loggedOn: string;
   whoopRecovery?: number | null;
@@ -10,44 +13,89 @@ type DayAcc = {
   steps?: number | null;
 };
 
-export function parseWhoop(text: string): ParseResult {
-  const rows = parseCsv(text);
-  if (rows.length === 0) {
-    return { kind: "error", error: "That CSV is empty." };
-  }
-  const days = new Map<string, DayAcc>();
-  const workouts: ImportWorkouts = [];
+type ImportWorkout = {
+  loggedOn: string;
+  name: string;
+  durationMin?: number | null;
+  strain?: number | null;
+};
 
+export function parseWhoop(text: string): ParseResult {
+  return parseWhoopCsvFiles([{ name: "whoop.csv", body: text }]);
+}
+
+export function parseWhoopCsvFiles(files: { name: string; body: string }[]): ParseResult {
+  const days = new Map<string, DayAcc>();
+  const workouts: ImportWorkout[] = [];
+  for (const file of files) {
+    if (isJournalCsv(file.name)) continue;
+    ingestWhoopCsv(file.body, days, workouts);
+  }
+  return finishWhoop(days, workouts);
+}
+
+export function isWhoopZipCsv(path: string): boolean {
+  const normalized = path.toLowerCase().replace(/\\/g, "/");
+  const base = normalized.slice(normalized.lastIndexOf("/") + 1);
+  if (base.includes("journal")) return false;
+  if (!base.endsWith(".csv")) return false;
+  return (
+    /physiological|recovery|whoop/.test(normalized) ||
+    /^(sleeps?|workouts?)\.csv$/.test(base)
+  );
+}
+
+/** Physiological cycles first, then sleeps (overlay), then workouts. */
+export function whoopZipCsvRank(path: string): number {
+  const normalized = path.toLowerCase().replace(/\\/g, "/");
+  const base = normalized.slice(normalized.lastIndexOf("/") + 1);
+  if (/^workouts?\.csv$/.test(base)) return 2;
+  if (/^sleeps?\.csv$/.test(base)) return 1;
+  return 0;
+}
+
+function isJournalCsv(path: string): boolean {
+  const base = path.toLowerCase().replace(/\\/g, "/");
+  return base.slice(base.lastIndexOf("/") + 1).includes("journal");
+}
+
+function ingestWhoopCsv(text: string, days: Map<string, DayAcc>, workouts: ImportWorkout[]): void {
+  const rows = parseCsv(text);
   for (const row of rows) {
     const date = pickDate(row);
     if (!date) continue;
-    const day = days.get(date) ?? { loggedOn: date };
     const recovery = pickNum(row, [
-      "recovery_score",
+      "recovery score %",
       "recovery score",
+      "recovery_score",
       "recovery",
       "whoop_recovery",
     ]);
-    const strain = pickNum(row, ["day_strain", "strain", "day strain"]);
+    const strain = pickNum(row, ["day strain", "day_strain", "strain"]);
     const sleepHours = pickSleepHours(row);
     const steps = pickNum(row, ["steps"]);
-    if (recovery != null) day.whoopRecovery = clamp(recovery, 0, 100);
-    if (strain != null) day.strain = strain;
-    if (sleepHours != null) day.sleepHours = sleepHours;
-    if (steps != null) day.steps = Math.round(steps);
-    days.set(date, day);
+    if (recovery != null || strain != null || sleepHours != null || steps != null) {
+      const day = days.get(date) ?? { loggedOn: date };
+      if (recovery != null) day.whoopRecovery = clamp(recovery, 0, 100);
+      if (strain != null) day.strain = strain;
+      if (sleepHours != null) day.sleepHours = sleepHours;
+      if (steps != null) day.steps = Math.round(steps);
+      days.set(date, day);
+    }
 
-    const workoutName = pickStr(row, ["workout", "activity", "sport"]);
+    const workoutName = pickStr(row, ["activity name", "workout", "activity", "sport"]);
     if (workoutName) {
       workouts.push({
         loggedOn: date,
         name: workoutName,
-        durationMin: pickNum(row, ["duration_min", "duration (min)", "duration"]),
-        strain: pickNum(row, ["activity_strain", "workout_strain"]),
+        durationMin: pickNum(row, ["duration (min)", "duration_min", "duration"]),
+        strain: pickNum(row, ["activity strain", "activity_strain", "workout_strain"]),
       });
     }
   }
+}
 
+function finishWhoop(days: Map<string, DayAcc>, workouts: ImportWorkout[]): ParseResult {
   if (days.size === 0) {
     return {
       kind: "error",
@@ -55,18 +103,27 @@ export function parseWhoop(text: string): ParseResult {
     };
   }
 
+  const uniqueDates = [...days.keys()].sort();
+  const keptDates =
+    uniqueDates.length > WHOOP_IMPORT_CAP ? uniqueDates.slice(-WHOOP_IMPORT_CAP) : uniqueDates;
+  const kept = new Set(keptDates);
+
   const records = emptyRecords("whoop");
-  records.healthDays = [...days.values()];
-  records.workouts = workouts;
+  records.healthDays = keptDates.map((loggedOn) => days.get(loggedOn)!);
+  const eligible = workouts
+    .map((workout, index) => ({ workout, index }))
+    .filter(({ workout }) => kept.has(workout.loggedOn));
+  const newestIndexes = new Set(
+    [...eligible]
+      .sort((a, b) => b.workout.loggedOn.localeCompare(a.workout.loggedOn) || b.index - a.index)
+      .slice(0, WHOOP_IMPORT_CAP)
+      .map(({ index }) => index),
+  );
+  records.workouts = eligible
+    .filter(({ index }) => newestIndexes.has(index))
+    .map(({ workout }) => workout);
   return { kind: "ok", records };
 }
-
-type ImportWorkouts = {
-  loggedOn: string;
-  name: string;
-  durationMin?: number | null;
-  strain?: number | null;
-}[];
 
 function parseCsv(text: string): Record<string, string>[] {
   const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim());
@@ -110,8 +167,17 @@ function splitCsvLine(line: string): string[] {
 
 function pickDate(row: Record<string, string>): string | undefined {
   const raw =
-    pickStr(row, ["date", "day", "cycle_start", "sleep_start", "logged_on", "calendar_date"]) ??
-    Object.values(row)[0];
+    pickStr(row, [
+      "cycle start time",
+      "workout start time",
+      "start time",
+      "date",
+      "day",
+      "cycle_start",
+      "sleep_start",
+      "logged_on",
+      "calendar_date",
+    ]) ?? Object.values(row)[0];
   if (!raw) return undefined;
   const iso = raw.slice(0, 10);
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
@@ -140,7 +206,7 @@ function pickSleepHours(row: Record<string, string>): number | undefined {
   if (hours != null) return hours;
   const milli = pickNum(row, ["total_sleep_time_milli", "sleep_milli"]);
   if (milli != null) return milli / 3_600_000;
-  const minutes = pickNum(row, ["sleep_minutes", "total_sleep_minutes"]);
+  const minutes = pickNum(row, ["asleep duration (min)", "sleep_minutes", "total_sleep_minutes"]);
   if (minutes != null) return minutes / 60;
   return undefined;
 }
