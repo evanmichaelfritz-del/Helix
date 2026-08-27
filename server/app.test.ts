@@ -386,6 +386,13 @@ describe("auth page lock", () => {
     expect(app).toContain("LockScreen");
     expect(app).toContain("unlockFaceId");
   });
+
+  it("does not require OAuth-only accounts to set a password on Auth or You", () => {
+    const auth = readFileSync("src/pages/Auth.tsx", "utf8");
+    const you = readFileSync("src/pages/Account.tsx", "utf8");
+    expect(you).not.toMatch(/[Pp]assword/);
+    expect(auth).not.toMatch(/Set a password|Create a password|Add a password|Choose a password/);
+  });
 });
 
 describe("auth backend", () => {
