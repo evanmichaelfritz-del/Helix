@@ -6,6 +6,7 @@ import { HELIX_EXPORT_KIND } from "../shared/types.js";
 import { doseSheetMode } from "../shared/dose-sheet.js";
 import { createApp } from "./app.js";
 import { createSqliteDb, migrate, type Database } from "./db.js";
+import { linkOrCreateOAuthUser } from "./oauth-user.js";
 import { POSTGRES_SCHEMA, schemaFor } from "./schema.js";
 import { globSync, readFileSync } from "node:fs";
 
@@ -380,11 +381,18 @@ describe("auth page lock", () => {
   it("keeps the You Face ID overlay as a client lock", () => {
     const chrome = readFileSync("src/lib/chrome.ts", "utf8");
     const app = readFileSync("src/App.tsx", "utf8");
+    const you = readFileSync("src/pages/Account.tsx", "utf8");
     expect(chrome).toContain("registerFaceId");
     expect(chrome).toContain("unlockFaceId");
     expect(chrome).toContain("helix:faceId:");
     expect(app).toContain("LockScreen");
     expect(app).toContain("unlockFaceId");
+    expect(you).toContain("registerFaceId");
+    expect(you).toContain("<strong>Face ID</strong>");
+    expect(you).toContain("Unlock this device with Face ID");
+    expect(you).toContain("Register this device");
+    expect(you).toContain("Not available on this device");
+    expect(you).not.toContain("passkeyOptions");
   });
 
   it("does not require OAuth-only accounts to set a password on Auth or You", () => {
@@ -434,6 +442,38 @@ describe("auth backend", () => {
     });
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "Email or password is wrong." });
+  });
+
+  it("lets an OAuth-only user use a session without setting a password", async () => {
+    const db = await createSqliteDb(":memory:");
+    await migrate(db);
+    const app = createApp(db);
+    const linked = await linkOrCreateOAuthUser(db, {
+      provider: "google",
+      providerUserId: "g-you",
+      email: "oauth-you@example.com",
+      emailVerified: true,
+      displayName: null,
+    });
+    expect(linked.ok).toBe(true);
+    if (!linked.ok) return;
+    expect(linked.user.password_hash).toBeNull();
+    await db.run("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)", [
+      "sess-oauth",
+      linked.user.id,
+      new Date(Date.now() + 86400000).toISOString(),
+    ]);
+    const headers = { Cookie: "helix_session=sess-oauth", "Content-Type": "application/json" };
+    const me = await app.request("/api/me", { headers });
+    expect(me.status).toBe(200);
+    const patch = await app.request("/api/me", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ settings: { faceId: true } }),
+    });
+    expect(patch.status).toBe(200);
+    const body = (await patch.json()) as { user: { settings: { faceId: boolean } } };
+    expect(body.user.settings.faceId).toBe(true);
   });
 
   it("fail-closes Google and X start when env is missing", async () => {
