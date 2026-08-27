@@ -11,6 +11,11 @@ export type Database = {
   get: <T>(sql: string, params?: SqlValue[]) => Promise<T | undefined>;
   run: (sql: string, params?: SqlValue[]) => Promise<{ changes: number }>;
   exec: (sql: string) => Promise<void>;
+  /**
+   * SQLite: interactive BEGIN/COMMIT on the same connection.
+   * Neon HTTP: collect writes, then one `sql.transaction([...])` fetch (non-interactive).
+   */
+  transaction: <T>(fn: (tx: Database) => Promise<T>) => Promise<T>;
 };
 
 export function isPostgresUrl(url: string | undefined): boolean {
@@ -81,7 +86,7 @@ function toPg(sql: string): string {
 
 function createNeonDb(url: string): Database {
   const sql = neon(url);
-  return {
+  const db: Database = {
     dialect: "postgres",
     async all<T>(query: string, params: SqlValue[] = []) {
       const rows = await sql.query(toPg(query), params);
@@ -99,7 +104,37 @@ function createNeonDb(url: string): Database {
       const tpl = Object.assign([statement], { raw: [statement] }) as unknown as TemplateStringsArray;
       await sql(tpl);
     },
+    async transaction(fn) {
+      const queued: { query: string; params: SqlValue[] }[] = [];
+      const tx: Database = {
+        dialect: "postgres",
+        all: async () => {
+          throw new Error("Neon HTTP transactions are non-interactive; read before db.transaction()");
+        },
+        get: async () => {
+          throw new Error("Neon HTTP transactions are non-interactive; read before db.transaction()");
+        },
+        run: async (query, params = []) => {
+          queued.push({ query, params });
+          return { changes: 0 };
+        },
+        exec: async (statement) => {
+          queued.push({ query: statement, params: [] });
+        },
+        transaction: async () => {
+          throw new Error("Nested transactions are not supported");
+        },
+      };
+      const result = await fn(tx);
+      if (queued.length > 0) {
+        await sql.transaction((txn) =>
+          queued.map((item) => txn.query(toPg(item.query), item.params)),
+        );
+      }
+      return result;
+    },
   };
+  return db;
 }
 
 export async function createSqliteDb(url: string): Promise<Database> {
@@ -113,7 +148,7 @@ export async function createSqliteDb(url: string): Promise<Database> {
   const client = createClient({ url: memory ? ":memory:" : url });
   await client.execute("PRAGMA foreign_keys = ON");
   await client.execute("PRAGMA journal_mode = WAL");
-  return {
+  const db: Database = {
     dialect: "sqlite",
     async all<T>(query: string, params: SqlValue[] = []) {
       const result = await client.execute({ sql: query, args: params });
@@ -130,7 +165,23 @@ export async function createSqliteDb(url: string): Promise<Database> {
     async exec(statement: string) {
       await client.execute(statement);
     },
+    async transaction(fn) {
+      await client.execute("BEGIN");
+      try {
+        const result = await fn(db);
+        await client.execute("COMMIT");
+        return result;
+      } catch (err) {
+        try {
+          await client.execute("ROLLBACK");
+        } catch {
+          /* no open transaction */
+        }
+        throw err;
+      }
+    },
   };
+  return db;
 }
 
 const migrated = new WeakSet<Database>();
