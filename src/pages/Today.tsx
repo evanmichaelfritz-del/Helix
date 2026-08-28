@@ -182,7 +182,7 @@ function TodayDosesSection(props: {
 }) {
   if (!props.hasPeptides) {
     return (
-      <Link className="card protocol-mini" to="/protocol">
+      <Link className="card protocol-mini" to="/protocol/peptides">
         Add a peptide
       </Link>
     );

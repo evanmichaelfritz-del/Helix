@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
 import { applyChrome, persistHelixTheme, storedCredentialId, unlockFaceId, watchSystemTheme } from "./lib/chrome.ts";
 import { ApiError, client } from "./lib/api.ts";
 import { AppStateProvider, useAppState } from "./lib/state.tsx";
@@ -9,7 +9,7 @@ import { Sheets, ToastBar } from "./components/Sheets.tsx";
 import { AuthPage } from "./pages/Auth.tsx";
 import { AccountPage } from "./pages/Account.tsx";
 import { CalendarPage } from "./pages/Calendar.tsx";
-import { DoseLogPage, PeptidesPage, ProtocolHome, ProtocolLayout, VialsPage } from "./pages/Protocol.tsx";
+import { DoseLogPage, PeptidesPage, ProtocolLayout, VialsPage } from "./pages/Protocol.tsx";
 import { TodayPage } from "./pages/Today.tsx";
 import { VitalsPage } from "./pages/Vitals.tsx";
 
@@ -107,7 +107,7 @@ function Root() {
           <Route path="/" element={<TodayPage />} />
           <Route path="/health" element={<VitalsPage />} />
           <Route path="/protocol" element={<ProtocolLayout />}>
-            <Route index element={<ProtocolHome />} />
+            <Route index element={<Navigate to="vials" replace />} />
             <Route path="peptides" element={<PeptidesPage />} />
             <Route path="vials" element={<VialsPage />} />
             <Route path="log" element={<DoseLogPage />} />
