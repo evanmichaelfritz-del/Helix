@@ -487,6 +487,36 @@ html.reduce-effects {
   text-decoration: none;
   color: inherit;
 }
+.today-doses { margin-top: 12px; }
+.today-dose-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+.today-doses-empty { padding: 18px 18px 16px; }
+.quick-log-btn {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--primary);
+  color: var(--primary-fg);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.quick-log-btn.done {
+  background: var(--solid-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.quick-log-btn:disabled { opacity: 0.6; cursor: default; }
 .vial-schedule-row .list-row { padding-bottom: 14px; }
 .expand-btn {
   display: grid;

@@ -1,11 +1,14 @@
 import type {
+  Dose,
+  Peptide,
+  PeptideUnit,
   RecoveryTone,
   RunwayTone,
   TodayHero,
   TodaySupporting,
   Vial,
 } from "./types.js";
-import { isScheduledOnDay, weekdayFromLocalDate, type PeptideSchedule } from "./schedule.js";
+import { isScheduledOnDay, scheduleTimesLabel, weekdayFromLocalDate, type PeptideSchedule } from "./schedule.js";
 
 export function remainingInjections(vial: Pick<Vial, "remainingAmount" | "dose">): number {
   if (vial.dose <= 0) return 0;
@@ -101,4 +104,53 @@ export function todaysWorkouts<T extends { loggedOn: string }>(workouts: T[], on
 
 export function isPeptideScheduledToday(schedule: PeptideSchedule, on: string): boolean {
   return isScheduledOnDay(schedule, weekdayFromLocalDate(on));
+}
+
+export type TodayScheduledDose = {
+  peptide: Peptide;
+  vial: Vial | null;
+  amount: number;
+  unit: PeptideUnit;
+  timesLabel: string;
+  logged: boolean;
+  loggedDose: Dose | null;
+  remainingInjections: number | null;
+  runwayTone: RunwayTone | null;
+};
+
+export function buildTodayScheduledDoses(opts: {
+  peptides: Peptide[];
+  vials: Vial[];
+  doses: Dose[];
+  on: string;
+}): TodayScheduledDose[] {
+  const { peptides, vials, doses, on } = opts;
+  const loggedByPeptide = new Map<string, Dose>();
+  for (const dose of doses) {
+    if (dose.loggedOn === on && !dose.undone) loggedByPeptide.set(dose.peptideId, dose);
+  }
+
+  return peptides
+    .filter((peptide) => isPeptideScheduledToday(peptide.schedule, on))
+    .map((peptide) => {
+      const vial = vials.find((row) => row.peptideId === peptide.id) ?? null;
+      const loggedDose = loggedByPeptide.get(peptide.id) ?? null;
+      const amount = loggedDose?.amount ?? peptide.lastAmount ?? vial?.dose ?? 0;
+      const remaining = vial ? remainingInjections(vial) : null;
+      return {
+        peptide,
+        vial,
+        amount,
+        unit: peptide.unit,
+        timesLabel: scheduleTimesLabel(peptide.schedule),
+        logged: loggedDose != null,
+        loggedDose,
+        remainingInjections: remaining,
+        runwayTone: remaining == null ? null : runwayTone(remaining),
+      };
+    })
+    .sort((a, b) => {
+      if (a.logged !== b.logged) return a.logged ? 1 : -1;
+      return a.peptide.name.localeCompare(b.peptide.name);
+    });
 }

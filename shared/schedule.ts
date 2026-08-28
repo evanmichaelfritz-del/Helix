@@ -61,3 +61,10 @@ export function scheduleSummary(schedule: PeptideSchedule): string {
   if (schedule.evening) times.push("PM");
   return `${dayPart} · ${times.join(" & ") || "Any time"}`;
 }
+
+export function scheduleTimesLabel(schedule: PeptideSchedule): string {
+  const labels: string[] = [];
+  if (schedule.morning) labels.push("Morning");
+  if (schedule.evening) labels.push("Evening");
+  return labels.join(" · ") || "Any time";
+}
