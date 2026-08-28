@@ -73,6 +73,15 @@ export const client = {
   peptides: () => api<{ peptides: import("@shared/types.ts").Peptide[] }>("/api/peptides"),
   createPeptide: (body: { name: string; unit: import("@shared/types.ts").PeptideUnit; color?: string }) =>
     api<{ peptide: import("@shared/types.ts").Peptide }>("/api/peptides", { method: "POST", json: body }),
+  updatePeptide: (
+    id: string,
+    body: {
+      name?: string;
+      unit?: import("@shared/types.ts").PeptideUnit;
+      color?: string;
+      schedule?: import("@shared/types.ts").PeptideSchedule;
+    },
+  ) => api<{ peptide: import("@shared/types.ts").Peptide }>(`/api/peptides/${id}`, { method: "PATCH", json: body }),
   vials: () =>
     api<{
       vials: Array<

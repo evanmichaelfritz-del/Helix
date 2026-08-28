@@ -5,6 +5,7 @@ import { newId, requireUser } from "../auth.js";
 import type { Env, PeptideRow } from "../context.js";
 import type { Database, SqlValue } from "../db.js";
 import { parseLocalDate, PEPTIDE_COLORS, PEPTIDE_UNITS } from "../../shared/types.js";
+import { DEFAULT_PEPTIDE_SCHEDULE, serializePeptideSchedule } from "../../shared/schedule.js";
 import { activeDoseSql, undoneParam } from "../dialect.js";
 
 const daySchema = z.object({
@@ -185,6 +186,7 @@ async function importRecords(
       p.unit,
       p.color ?? PEPTIDE_COLORS[uniquePeptides.length % PEPTIDE_COLORS.length],
       p.lastAmount ?? null,
+      serializePeptideSchedule(DEFAULT_PEPTIDE_SCHEDULE),
       now,
     ]);
   }
@@ -342,9 +344,9 @@ async function importRecords(
   );
   pushUnionInsert(
     statements,
-    `INSERT INTO peptides (id, user_id, name, unit, color, last_amount, created_at)
-     SELECT id, user_id, name, unit, color, last_amount, created_at FROM (`,
-    ["id", "user_id", "name", "unit", "color", "last_amount", "created_at"],
+    `INSERT INTO peptides (id, user_id, name, unit, color, last_amount, schedule, created_at)
+     SELECT id, user_id, name, unit, color, last_amount, schedule, created_at FROM (`,
+    ["id", "user_id", "name", "unit", "color", "last_amount", "schedule", "created_at"],
     uniquePeptides,
     `) AS incoming
      WHERE NOT EXISTS (

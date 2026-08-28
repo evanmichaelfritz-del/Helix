@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import type { Dose, Peptide, Vial } from "@shared/types.ts";
-import { remainingInjections, runwayTone } from "@shared/health.ts";
+import { remainingInjections, runwayTone, isPeptideScheduledToday } from "@shared/health.ts";
+import { scheduleSummary } from "@shared/schedule.ts";
 import { todayLocal } from "@shared/types.ts";
 import { client } from "../lib/api.ts";
 import { useAppState } from "../lib/state.tsx";
 import { PeptideSwatch, VialRunway } from "../components/Shell.tsx";
+import { ChevronDown, PeptideScheduleEditor } from "../components/PeptideScheduleEditor.tsx";
 
 export function ProtocolLayout() {
   return (
@@ -48,8 +50,10 @@ export function ProtocolHome() {
   }
 
   const logged = new Set(doses.filter((d) => !d.undone).map((d) => d.peptideId));
-  const due = peptides.find((p) => !logged.has(p.id));
-  const peptide = due ?? peptides[0];
+  const scheduled = peptides.filter((p) => isPeptideScheduledToday(p.schedule, on));
+  const pool = scheduled.length > 0 ? scheduled : peptides;
+  const due = pool.find((p) => !logged.has(p.id));
+  const peptide = due ?? pool[0];
   const vial = vials.find((v) => v.peptideId === peptide.id) ?? null;
   const remaining = vial ? remainingInjections(vial) : null;
   const loggedDose = doses.find((d) => d.peptideId === peptide.id && !d.undone);
@@ -135,28 +139,72 @@ export function PeptidesPage() {
 }
 
 export function VialsPage() {
-  const { gen, openSheet } = useAppState();
+  const { gen, bump, openSheet } = useAppState();
   const [vials, setVials] = useState<
     Array<Vial & { remainingInjections: number; runwayTone: "ok" | "amber" | "red" }>
   >([]);
   const { peptides, setPeptides } = useAppState();
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
+
   useEffect(() => {
     client.vials().then((r) => setVials(r.vials)).catch(() => undefined);
     client.peptides().then((r) => setPeptides(r.peptides)).catch(() => undefined);
   }, [gen, setPeptides]);
+
+  const rows = peptides
+    .map((peptide) => {
+      const vial = vials.find((v) => v.peptideId === peptide.id);
+      if (!vial) return null;
+      return { peptide, vial };
+    })
+    .filter((row): row is { peptide: Peptide; vial: (typeof vials)[number] } => row != null);
+
+  async function saveSchedule(peptide: Peptide, schedule: Peptide["schedule"]) {
+    setSaving(peptide.id);
+    try {
+      const { peptide: updated } = await client.updatePeptide(peptide.id, { schedule });
+      setPeptides(peptides.map((p) => (p.id === updated.id ? updated : p)));
+      bump();
+    } finally {
+      setSaving(null);
+    }
+  }
+
   return (
     <>
       <div className="list">
-        {vials.map((v) => {
-          const peptide = peptides.find((p) => p.id === v.peptideId);
+        {rows.map(({ peptide, vial }) => {
+          const open = expanded === peptide.id;
           return (
-            <div className="card list-row" key={v.id}>
-              {peptide ? <PeptideSwatch color={peptide.color} /> : null}
-              <div className="meta" style={{ flex: 1 }}>
-                <strong>{peptide?.name ?? "Vial"}</strong>
-                <div className="muted">{v.label || `${v.remainingAmount} remaining`}</div>
+            <div className="card vial-schedule-row" key={peptide.id}>
+              <div className="list-row">
+                <PeptideSwatch color={peptide.color} />
+                <div className="meta" style={{ flex: 1, minWidth: 0 }}>
+                  <strong>{peptide.name}</strong>
+                  <div className="muted">{scheduleSummary(peptide.schedule)}</div>
+                  <div className="muted">{vial.label || `${vial.remainingAmount} remaining`}</div>
+                </div>
+                <VialRunway remaining={vial.remainingInjections} tone={vial.runwayTone} />
+                <button
+                  type="button"
+                  className="expand-btn"
+                  aria-expanded={open}
+                  aria-label={`${open ? "Hide" : "Show"} schedule for ${peptide.name}`}
+                  onClick={() => setExpanded(open ? null : peptide.id)}
+                >
+                  <ChevronDown open={open} />
+                </button>
               </div>
-              <VialRunway remaining={v.remainingInjections} tone={v.runwayTone} />
+              {open ? (
+                <div className="schedule-panel">
+                  <PeptideScheduleEditor
+                    schedule={peptide.schedule}
+                    disabled={saving === peptide.id}
+                    onChange={(schedule) => void saveSchedule(peptide, schedule)}
+                  />
+                </div>
+              ) : null}
             </div>
           );
         })}

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { PEPTIDE_COLORS, PEPTIDE_UNITS } from "../../shared/types.js";
+import { DEFAULT_PEPTIDE_SCHEDULE, parsePeptideSchedule, serializePeptideSchedule } from "../../shared/schedule.js";
 import { remainingInjections, runwayTone } from "../../shared/health.js";
 import { newId, requireUser } from "../auth.js";
 import type { Env, PeptideRow, VialRow } from "../context.js";
@@ -45,11 +46,12 @@ peptideRoutes.post(
       unit: body.unit,
       color,
       last_amount: null,
+      schedule: serializePeptideSchedule(DEFAULT_PEPTIDE_SCHEDULE),
       created_at: new Date().toISOString(),
     };
     await db.run(
-      "INSERT INTO peptides (id, user_id, name, unit, color, last_amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [row.id, row.user_id, row.name, row.unit, row.color, row.last_amount, row.created_at],
+      "INSERT INTO peptides (id, user_id, name, unit, color, last_amount, schedule, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [row.id, row.user_id, row.name, row.unit, row.color, row.last_amount, row.schedule, row.created_at],
     );
     return c.json({ peptide: mapPeptide(row) }, 201);
   },
@@ -63,6 +65,13 @@ peptideRoutes.patch(
       name: z.string().trim().min(1).max(80).optional(),
       unit: z.enum(PEPTIDE_UNITS).optional(),
       color: z.string().min(4).max(16).optional(),
+      schedule: z
+        .object({
+          days: z.array(z.number().int().min(0).max(6)),
+          morning: z.boolean(),
+          evening: z.boolean(),
+        })
+        .optional(),
     }),
   ),
   async (c) => {
@@ -80,11 +89,13 @@ peptideRoutes.patch(
       name: body.name ?? row.name,
       unit: body.unit ?? row.unit,
       color: body.color ?? row.color,
+      schedule: body.schedule ? serializePeptideSchedule(parsePeptideSchedule(body.schedule)) : row.schedule,
     };
-    await db.run("UPDATE peptides SET name = ?, unit = ?, color = ? WHERE id = ?", [
+    await db.run("UPDATE peptides SET name = ?, unit = ?, color = ?, schedule = ? WHERE id = ?", [
       next.name,
       next.unit,
       next.color,
+      next.schedule,
       id,
     ]);
     return c.json({ peptide: mapPeptide(next) });

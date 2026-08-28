@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { remainingInjections, runwayTone, supportingLines, todayHero } from "../../shared/health.js";
+import { remainingInjections, runwayTone, supportingLines, todayHero, isPeptideScheduledToday } from "../../shared/health.js";
 import { parseLocalDate, type LocalDate, type TodayPayload } from "../../shared/types.js";
 import { requireUser } from "../auth.js";
 import type { DoseRow, Env, HealthDayRow, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.js";
@@ -65,7 +65,7 @@ export async function loadToday(opts: {
     weighIns: mappedWeighIns,
     hero,
     supporting: supportingLines(day, mappedWeighIns, hero),
-    protocol: nextProtocol({ peptides, vials, dosesToday }),
+    protocol: nextProtocol({ peptides, vials, dosesToday, on }),
     workouts: workouts.map(mapWorkout),
   };
 }
@@ -74,12 +74,18 @@ function nextProtocol(opts: {
   peptides: PeptideRow[];
   vials: VialRow[];
   dosesToday: DoseRow[];
+  on: LocalDate;
 }): TodayPayload["protocol"] {
-  const { peptides, vials, dosesToday } = opts;
+  const { peptides, vials, dosesToday, on } = opts;
   if (peptides.length === 0) return { kind: "empty" };
   const logged = new Set(dosesToday.map((d) => d.peptide_id));
-  const due = peptides.find((p) => !logged.has(p.id));
-  const row = due ?? peptides[0];
+  const scheduled = peptides.filter((p) => {
+    const peptide = mapPeptide(p);
+    return isPeptideScheduledToday(peptide.schedule, on);
+  });
+  const pool = scheduled.length > 0 ? scheduled : peptides;
+  const due = pool.find((p) => !logged.has(p.id));
+  const row = due ?? pool[0];
   const peptide = mapPeptide(row);
   const vialRow = vials.find((v) => v.peptide_id === row.id) ?? null;
   const vial = vialRow ? mapVial(vialRow) : null;

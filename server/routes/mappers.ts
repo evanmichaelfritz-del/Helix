@@ -1,5 +1,6 @@
 import type { Dose, HealthDay, Peptide, PeptideUnit, Vial, WeighIn, Workout } from "../../shared/types.js";
 import { parseLocalDate } from "../../shared/types.js";
+import { parsePeptideSchedule } from "../../shared/schedule.js";
 import type { DoseRow, HealthDayRow, PeptideRow, VialRow, WeighInRow, WorkoutRow } from "../context.js";
 import { num } from "../context.js";
 import { isUndone } from "../dialect.js";
@@ -14,12 +15,21 @@ function dateOf(value: string) {
 }
 
 export function mapPeptide(row: PeptideRow): Peptide {
+  let scheduleRaw: unknown = row.schedule;
+  if (typeof scheduleRaw === "string") {
+    try {
+      scheduleRaw = JSON.parse(scheduleRaw);
+    } catch {
+      scheduleRaw = undefined;
+    }
+  }
   return {
     id: row.id,
     name: row.name,
     unit: unitOf(row.unit),
     color: row.color,
     lastAmount: num(row.last_amount),
+    schedule: parsePeptideSchedule(scheduleRaw),
     createdAt: row.created_at,
   };
 }

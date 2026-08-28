@@ -5,6 +5,7 @@ import type {
   TodaySupporting,
   Vial,
 } from "./types.js";
+import { isScheduledOnDay, weekdayFromLocalDate, type PeptideSchedule } from "./schedule.js";
 
 export function remainingInjections(vial: Pick<Vial, "remainingAmount" | "dose">): number {
   if (vial.dose <= 0) return 0;
@@ -96,4 +97,8 @@ export function supportingLines(
 
 export function todaysWorkouts<T extends { loggedOn: string }>(workouts: T[], on: string): T[] {
   return workouts.filter((row) => row.loggedOn === on);
+}
+
+export function isPeptideScheduledToday(schedule: PeptideSchedule, on: string): boolean {
+  return isScheduledOnDay(schedule, weekdayFromLocalDate(on));
 }

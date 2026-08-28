@@ -28,6 +28,7 @@ export type PeptideRow = {
   unit: string;
   color: string;
   last_amount: number | null;
+  schedule: string;
   created_at: string;
 };
 

@@ -47,7 +47,18 @@ export async function migrate(db: Database): Promise<void> {
   for (const statement of schemaFor(db.dialect)) {
     await db.exec(statement);
   }
-  if (db.dialect === "sqlite") await sqliteRelaxUsers(db);
+  if (db.dialect === "sqlite") {
+    await sqliteRelaxUsers(db);
+    await sqliteAddPeptideSchedule(db);
+  }
+}
+
+async function sqliteAddPeptideSchedule(db: Database): Promise<void> {
+  const cols = await db.all<{ name: string }>("PRAGMA table_info(peptides)");
+  if (cols.some((col) => col.name === "schedule")) return;
+  await db.exec(
+    `ALTER TABLE peptides ADD COLUMN schedule TEXT NOT NULL DEFAULT '{"days":[0,1,2,3,4,5,6],"morning":true,"evening":false}'`,
+  );
 }
 
 async function sqliteRelaxUsers(db: Database): Promise<void> {
