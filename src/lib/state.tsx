@@ -1,5 +1,10 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import type { Peptide, UserPublic } from "@shared/types.ts";
+import type { Dose, Peptide, RunwayTone, UserPublic, Vial } from "@shared/types.ts";
+
+export type VialWithRunway = Vial & {
+  remainingInjections: number;
+  runwayTone: RunwayTone;
+};
 
 export type Sheet =
   | { kind: "log-dose"; peptideId?: string }
@@ -19,6 +24,12 @@ type AppState = {
   closeSheet: () => void;
   peptides: Peptide[];
   setPeptides: (peptides: Peptide[]) => void;
+  vials: VialWithRunway[];
+  setVials: (vials: VialWithRunway[]) => void;
+  doses: Dose[];
+  setDoses: (doses: Dose[]) => void;
+  protocolReady: boolean;
+  setProtocolReady: (ready: boolean) => void;
   toast: Toast | null;
   showToast: (toast: Toast) => void;
   clearToast: () => void;
@@ -31,6 +42,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [gen, setGen] = useState(0);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [peptides, setPeptides] = useState<Peptide[]>([]);
+  const [vials, setVials] = useState<VialWithRunway[]>([]);
+  const [doses, setDoses] = useState<Dose[]>([]);
+  const [protocolReady, setProtocolReady] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
   const bump = useCallback(() => setGen((n) => n + 1), []);
   const value = useMemo(
@@ -44,6 +58,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       closeSheet: () => setSheet(null),
       peptides,
       setPeptides,
+      vials,
+      setVials,
+      doses,
+      setDoses,
+      protocolReady,
+      setProtocolReady,
       toast,
       showToast: (t: Toast) => {
         setToast(t);
@@ -51,7 +71,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       },
       clearToast: () => setToast(null),
     }),
-    [user, gen, bump, sheet, peptides, toast],
+    [user, gen, bump, sheet, peptides, vials, doses, protocolReady, toast],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

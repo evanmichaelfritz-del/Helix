@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import type { Dose, Peptide, Vial } from "@shared/types.ts";
+import type { Peptide } from "@shared/types.ts";
 import { remainingInjections, runwayTone, isPeptideScheduledToday } from "@shared/health.ts";
 import { scheduleSummary } from "@shared/schedule.ts";
 import { todayLocal } from "@shared/types.ts";
@@ -10,6 +10,30 @@ import { PeptideSwatch, VialRunway } from "../components/Shell.tsx";
 import { ChevronDown, PeptideScheduleEditor } from "../components/PeptideScheduleEditor.tsx";
 
 export function ProtocolLayout() {
+  const { gen, setPeptides, setVials, setDoses, setProtocolReady, protocolReady } = useAppState();
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      client.peptides(),
+      client.vials(),
+      client.doses(),
+    ])
+      .then(([peptideRes, vialRes, doseRes]) => {
+        if (cancelled) return;
+        setPeptides(peptideRes.peptides);
+        setVials(vialRes.vials);
+        setDoses(doseRes.doses);
+        setProtocolReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setProtocolReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [gen, setPeptides, setVials, setDoses, setProtocolReady]);
+
   return (
     <>
       <h1>Protocol</h1>
@@ -21,22 +45,15 @@ export function ProtocolLayout() {
         <NavLink to="/protocol/vials">Vials</NavLink>
         <NavLink to="/protocol/log">Log</NavLink>
       </nav>
-      <Outlet />
+      {protocolReady ? <Outlet /> : <p className="muted">Loading…</p>}
     </>
   );
 }
 
 export function ProtocolHome() {
-  const { gen, bump, openSheet, setPeptides, peptides } = useAppState();
-  const [vials, setVials] = useState<Vial[]>([]);
-  const [doses, setDoses] = useState<Dose[]>([]);
+  const { bump, openSheet, peptides, vials, doses } = useAppState();
   const on = todayLocal();
-
-  useEffect(() => {
-    client.peptides().then((r) => setPeptides(r.peptides)).catch(() => undefined);
-    client.vials().then((r) => setVials(r.vials)).catch(() => undefined);
-    client.doses(on).then((r) => setDoses(r.doses)).catch(() => undefined);
-  }, [gen, on, setPeptides]);
+  const dosesToday = doses.filter((d) => d.loggedOn === on);
 
   if (peptides.length === 0) {
     return (
@@ -49,14 +66,14 @@ export function ProtocolHome() {
     );
   }
 
-  const logged = new Set(doses.filter((d) => !d.undone).map((d) => d.peptideId));
+  const logged = new Set(dosesToday.filter((d) => !d.undone).map((d) => d.peptideId));
   const scheduled = peptides.filter((p) => isPeptideScheduledToday(p.schedule, on));
   const pool = scheduled.length > 0 ? scheduled : peptides;
   const due = pool.find((p) => !logged.has(p.id));
   const peptide = due ?? pool[0];
   const vial = vials.find((v) => v.peptideId === peptide.id) ?? null;
   const remaining = vial ? remainingInjections(vial) : null;
-  const loggedDose = doses.find((d) => d.peptideId === peptide.id && !d.undone);
+  const loggedDose = dosesToday.find((d) => d.peptideId === peptide.id && !d.undone);
   const amount = loggedDose?.amount ?? peptide.lastAmount ?? vial?.dose ?? 0;
   const status = due ? "Due today" : "Logged";
 
@@ -111,10 +128,7 @@ export function ProtocolHome() {
 }
 
 export function PeptidesPage() {
-  const { gen, openSheet, setPeptides, peptides } = useAppState();
-  useEffect(() => {
-    client.peptides().then((r) => setPeptides(r.peptides)).catch(() => undefined);
-  }, [gen, setPeptides]);
+  const { openSheet, peptides } = useAppState();
   return (
     <>
       <div className="list">
@@ -139,18 +153,9 @@ export function PeptidesPage() {
 }
 
 export function VialsPage() {
-  const { gen, bump, openSheet } = useAppState();
-  const [vials, setVials] = useState<
-    Array<Vial & { remainingInjections: number; runwayTone: "ok" | "amber" | "red" }>
-  >([]);
-  const { peptides, setPeptides } = useAppState();
+  const { openSheet, peptides, vials, setPeptides } = useAppState();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
-
-  useEffect(() => {
-    client.vials().then((r) => setVials(r.vials)).catch(() => undefined);
-    client.peptides().then((r) => setPeptides(r.peptides)).catch(() => undefined);
-  }, [gen, setPeptides]);
 
   const rows = peptides
     .map((peptide) => {
@@ -165,7 +170,6 @@ export function VialsPage() {
     try {
       const { peptide: updated } = await client.updatePeptide(peptide.id, { schedule });
       setPeptides(peptides.map((p) => (p.id === updated.id ? updated : p)));
-      bump();
     } finally {
       setSaving(null);
     }
@@ -217,13 +221,7 @@ export function VialsPage() {
 }
 
 export function DoseLogPage() {
-  const { gen } = useAppState();
-  const [doses, setDoses] = useState<Dose[]>([]);
-  const [peptides, setPeptides] = useState<Peptide[]>([]);
-  useEffect(() => {
-    client.doses().then((r) => setDoses(r.doses)).catch(() => undefined);
-    client.peptides().then((r) => setPeptides(r.peptides)).catch(() => undefined);
-  }, [gen]);
+  const { peptides, doses } = useAppState();
   return (
     <div className="list">
       {doses.length === 0 ? <p className="muted">No doses yet.</p> : null}
@@ -244,4 +242,3 @@ export function DoseLogPage() {
     </div>
   );
 }
-
