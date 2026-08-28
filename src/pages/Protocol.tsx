@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import type { Peptide } from "@shared/types.ts";
-import { remainingInjections, runwayTone, isPeptideScheduledToday } from "@shared/health.ts";
 import { scheduleSummary } from "@shared/schedule.ts";
-import { todayLocal } from "@shared/types.ts";
 import { client } from "../lib/api.ts";
 import { useAppState } from "../lib/state.tsx";
 import { PeptideSwatch, VialRunway } from "../components/Shell.tsx";
@@ -14,92 +12,12 @@ export function ProtocolLayout() {
     <>
       <h1>Protocol</h1>
       <nav className="subnav">
-        <NavLink to="/protocol" end>
-          Next
-        </NavLink>
-        <NavLink to="/protocol/peptides">Library</NavLink>
         <NavLink to="/protocol/vials">Vials</NavLink>
+        <NavLink to="/protocol/peptides">Library</NavLink>
         <NavLink to="/protocol/log">Log</NavLink>
       </nav>
       <Outlet />
     </>
-  );
-}
-
-export function ProtocolHome() {
-  const { bump, openSheet, peptides, vials, doses } = useAppState();
-  const on = todayLocal();
-  const dosesToday = doses.filter((d) => d.loggedOn === on);
-
-  if (peptides.length === 0) {
-    return (
-      <article className="card today-hero">
-        <p className="kicker">Next dose</p>
-        <button className="import-empty" type="button" onClick={() => openSheet({ kind: "add-peptide" })}>
-          Add a peptide
-        </button>
-      </article>
-    );
-  }
-
-  const logged = new Set(dosesToday.filter((d) => !d.undone).map((d) => d.peptideId));
-  const scheduled = peptides.filter((p) => isPeptideScheduledToday(p.schedule, on));
-  const pool = scheduled.length > 0 ? scheduled : peptides;
-  const due = pool.find((p) => !logged.has(p.id));
-  const peptide = due ?? pool[0];
-  const vial = vials.find((v) => v.peptideId === peptide.id) ?? null;
-  const remaining = vial ? remainingInjections(vial) : null;
-  const loggedDose = dosesToday.find((d) => d.peptideId === peptide.id && !d.undone);
-  const amount = loggedDose?.amount ?? peptide.lastAmount ?? vial?.dose ?? 0;
-  const status = due ? "Due today" : "Logged";
-
-  async function undoLogged() {
-    if (!loggedDose) return;
-    await client.undoDose(loggedDose.id);
-    bump();
-  }
-
-  return (
-    <article className="card protocol-hero">
-      <p className="kicker">Next dose</p>
-      <div style={{ display: "flex", gap: 14, alignItems: "center", marginTop: 12 }}>
-        <PeptideSwatch color={peptide.color} />
-        <div>
-          <div className="hero-value" style={{ fontSize: 40, margin: 0 }}>
-            {amount} <span style={{ fontSize: 18 }}>{peptide.unit}</span>
-          </div>
-          <p className="hero-label">
-            {peptide.name} · {status}
-          </p>
-        </div>
-      </div>
-      {vial ? (
-        <div style={{ marginTop: 16 }}>
-          <p className="muted">{vial.label || "Current vial"}</p>
-          <VialRunway remaining={remaining} tone={remaining == null ? null : runwayTone(remaining)} />
-        </div>
-      ) : (
-        <button className="btn ghost" style={{ marginTop: 16 }} type="button" onClick={() => openSheet({ kind: "add-vial", peptideId: peptide.id })}>
-          Add a vial
-        </button>
-      )}
-      {loggedDose ? (
-        <div className="row-btns" style={{ marginTop: 16 }}>
-          <button className="btn" type="button" onClick={() => void undoLogged()}>
-            Undo
-          </button>
-        </div>
-      ) : (
-        <button
-          className="btn"
-          style={{ marginTop: 16 }}
-          type="button"
-          onClick={() => openSheet({ kind: "log-dose", peptideId: peptide.id })}
-        >
-          Log dose
-        </button>
-      )}
-    </article>
   );
 }
 
