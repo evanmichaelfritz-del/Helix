@@ -1,5 +1,15 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import type { Dose, Peptide, RunwayTone, UserPublic, Vial } from "@shared/types.ts";
+import type {
+  Dose,
+  HealthDay,
+  Peptide,
+  RunwayTone,
+  TodayPayload,
+  UserPublic,
+  Vial,
+  WeighIn,
+  Workout,
+} from "@shared/types.ts";
 
 export type VialWithRunway = Vial & {
   remainingInjections: number;
@@ -28,8 +38,22 @@ type AppState = {
   setVials: (vials: VialWithRunway[]) => void;
   doses: Dose[];
   setDoses: (doses: Dose[]) => void;
-  protocolReady: boolean;
-  setProtocolReady: (ready: boolean) => void;
+  healthDays: HealthDay[];
+  setHealthDays: (days: HealthDay[]) => void;
+  healthWeighIns: WeighIn[];
+  setHealthWeighIns: (weighIns: WeighIn[]) => void;
+  healthWorkouts: Workout[];
+  setHealthWorkouts: (workouts: Workout[]) => void;
+  todayPayload: TodayPayload | null;
+  setTodayPayload: (payload: TodayPayload | null) => void;
+  todayDay: HealthDay | null;
+  setTodayDay: (day: HealthDay | null) => void;
+  todayWorkouts: Workout[];
+  setTodayWorkouts: (workouts: Workout[]) => void;
+  todayError: string | null;
+  setTodayError: (error: string | null) => void;
+  appDataReady: boolean;
+  setAppDataReady: (ready: boolean) => void;
   toast: Toast | null;
   showToast: (toast: Toast) => void;
   clearToast: () => void;
@@ -44,7 +68,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [peptides, setPeptides] = useState<Peptide[]>([]);
   const [vials, setVials] = useState<VialWithRunway[]>([]);
   const [doses, setDoses] = useState<Dose[]>([]);
-  const [protocolReady, setProtocolReady] = useState(false);
+  const [healthDays, setHealthDays] = useState<HealthDay[]>([]);
+  const [healthWeighIns, setHealthWeighIns] = useState<WeighIn[]>([]);
+  const [healthWorkouts, setHealthWorkouts] = useState<Workout[]>([]);
+  const [todayPayload, setTodayPayload] = useState<TodayPayload | null>(null);
+  const [todayDay, setTodayDay] = useState<HealthDay | null>(null);
+  const [todayWorkouts, setTodayWorkouts] = useState<Workout[]>([]);
+  const [todayError, setTodayError] = useState<string | null>(null);
+  const [appDataReady, setAppDataReady] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
   const bump = useCallback(() => setGen((n) => n + 1), []);
   const value = useMemo(
@@ -62,8 +93,22 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setVials,
       doses,
       setDoses,
-      protocolReady,
-      setProtocolReady,
+      healthDays,
+      setHealthDays,
+      healthWeighIns,
+      setHealthWeighIns,
+      healthWorkouts,
+      setHealthWorkouts,
+      todayPayload,
+      setTodayPayload,
+      todayDay,
+      setTodayDay,
+      todayWorkouts,
+      setTodayWorkouts,
+      todayError,
+      setTodayError,
+      appDataReady,
+      setAppDataReady,
       toast,
       showToast: (t: Toast) => {
         setToast(t);
@@ -71,7 +116,24 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       },
       clearToast: () => setToast(null),
     }),
-    [user, gen, bump, sheet, peptides, vials, doses, protocolReady, toast],
+    [
+      user,
+      gen,
+      bump,
+      sheet,
+      peptides,
+      vials,
+      doses,
+      healthDays,
+      healthWeighIns,
+      healthWorkouts,
+      todayPayload,
+      todayDay,
+      todayWorkouts,
+      todayError,
+      appDataReady,
+      toast,
+    ],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -1,39 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
-import type { HealthDay, ImportResult, WeighIn, Workout } from "@shared/types.ts";
+import type { ImportResult } from "@shared/types.ts";
 import { parseImportFile } from "@shared/import/index.ts";
 import { ApiError, client } from "../lib/api.ts";
 import { formatWeight, hoursLabel } from "../lib/format.ts";
 import { useAppState } from "../lib/state.tsx";
 
 export function VitalsPage() {
-  const { gen, bump, user } = useAppState();
+  const { bump, user, healthDays, healthWeighIns, healthWorkouts } = useAppState();
   const location = useLocation();
-  const [days, setDays] = useState<HealthDay[]>([]);
-  const [weighIns, setWeighIns] = useState<WeighIn[]>([]);
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [imported, setImported] = useState<ImportResult | null>(null);
   const unit = user?.settings.weightUnit ?? "kg";
 
   useEffect(() => {
-    client
-      .health()
-      .then((r) => {
-        setDays(r.days);
-        setWeighIns(r.weighIns);
-        setWorkouts(r.workouts);
-      })
-      .catch(() => undefined);
-  }, [gen]);
-
-  useEffect(() => {
     if (location.hash !== "#sources") return;
     document.querySelector("[data-helix-scroll]")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [location.hash, days.length]);
+  }, [location.hash, healthDays.length]);
 
-  const series = useMemo(() => trendSeries(days), [days]);
-  const weights = weighIns.slice(-14).map((w) => w.kg);
+  const series = useMemo(() => trendSeries(healthDays), [healthDays]);
+  const weights = healthWeighIns.slice(-14).map((w) => w.kg);
 
   return (
     <>
@@ -65,9 +51,9 @@ export function VitalsPage() {
         </article>
       ) : null}
 
-      {workouts.length > 0 ? (
+      {healthWorkouts.length > 0 ? (
         <div className="stack section">
-          {workouts.slice(0, 12).map((w) => (
+          {healthWorkouts.slice(0, 12).map((w) => (
             <article className="card workout" key={w.id}>
               <div>
                 <strong>{w.name}</strong>
@@ -122,7 +108,7 @@ export function VitalsPage() {
   );
 }
 
-function trendSeries(days: HealthDay[]): {
+function trendSeries(days: import("@shared/types.ts").HealthDay[]): {
   label: string;
   values: number[];
   latest: string;

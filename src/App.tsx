@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import { applyChrome, persistHelixTheme, storedCredentialId, unlockFaceId, watchSystemTheme } from "./lib/chrome.ts";
 import { ApiError, client } from "./lib/api.ts";
 import { AppStateProvider, useAppState } from "./lib/state.tsx";
+import { AppDataLoader } from "./lib/app-data.tsx";
 import { Shell } from "./components/Shell.tsx";
 import { Sheets, ToastBar } from "./components/Sheets.tsx";
 import { AuthPage } from "./pages/Auth.tsx";
@@ -100,6 +101,7 @@ function Root() {
           }}
         />
       ) : null}
+      <AppDataLoader />
       <Shell>
         <Routes>
           <Route path="/" element={<TodayPage />} />
