@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import type { Peptide } from "@shared/types.ts";
 import { remainingInjections, runwayTone, isPeptideScheduledToday } from "@shared/health.ts";
@@ -10,30 +10,6 @@ import { PeptideSwatch, VialRunway } from "../components/Shell.tsx";
 import { ChevronDown, PeptideScheduleEditor } from "../components/PeptideScheduleEditor.tsx";
 
 export function ProtocolLayout() {
-  const { gen, setPeptides, setVials, setDoses, setProtocolReady, protocolReady } = useAppState();
-
-  useEffect(() => {
-    let cancelled = false;
-    void Promise.all([
-      client.peptides(),
-      client.vials(),
-      client.doses(),
-    ])
-      .then(([peptideRes, vialRes, doseRes]) => {
-        if (cancelled) return;
-        setPeptides(peptideRes.peptides);
-        setVials(vialRes.vials);
-        setDoses(doseRes.doses);
-        setProtocolReady(true);
-      })
-      .catch(() => {
-        if (!cancelled) setProtocolReady(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [gen, setPeptides, setVials, setDoses, setProtocolReady]);
-
   return (
     <>
       <h1>Protocol</h1>
@@ -45,7 +21,7 @@ export function ProtocolLayout() {
         <NavLink to="/protocol/vials">Vials</NavLink>
         <NavLink to="/protocol/log">Log</NavLink>
       </nav>
-      {protocolReady ? <Outlet /> : <p className="muted">Loading…</p>}
+      <Outlet />
     </>
   );
 }

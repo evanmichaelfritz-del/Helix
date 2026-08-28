@@ -1,65 +1,33 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   EMPTY_HERO_TITLE,
-  pickHealthDay,
   pickTodayHero,
   supportingLines,
   todaysWorkouts,
 } from "@shared/health.ts";
-import {
-  todayLocal,
-  type HealthDay,
-  type TodayPayload,
-  type TodayProtocol,
-  type WeighIn,
-  type Workout,
-} from "@shared/types.ts";
-import { ApiError, client } from "../lib/api.ts";
+import { todayLocal, type TodayPayload, type TodayProtocol } from "@shared/types.ts";
 import { dayHeading, formatWeight, hoursLabel, signedDelta } from "../lib/format.ts";
 import { useAppState } from "../lib/state.tsx";
 import { PeptideSwatch, VialRunway } from "../components/Shell.tsx";
 
 export function TodayPage() {
-  const { gen, openSheet, user, setPeptides } = useAppState();
-  const [data, setData] = useState<TodayPayload | null>(null);
-  const [day, setDay] = useState<HealthDay | null>(null);
-  const [weighIns, setWeighIns] = useState<WeighIn[]>([]);
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const { openSheet, user, todayPayload, todayDay, todayWorkouts, healthWeighIns, todayError, appDataReady } =
+    useAppState();
   const [fabOpen, setFabOpen] = useState(false);
   const on = todayLocal();
   const unit = user?.settings.weightUnit ?? "kg";
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([client.today(on), client.health(), client.workouts(on)])
-      .then(([today, health, listed]) => {
-        if (cancelled) return;
-        setData(today);
-        const matched = pickHealthDay(health.days, on);
-        setDay(matched ?? (today.day?.loggedOn === on ? today.day : null));
-        setWeighIns(health.weighIns.length > 0 ? health.weighIns : today.weighIns);
-        const fromList = todaysWorkouts(listed.workouts, on);
-        const fromToday = todaysWorkouts(today.workouts, on);
-        setWorkouts(fromList.length > 0 ? fromList : fromToday);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof ApiError ? err.message : "Could not load today.");
-      });
-    client.peptides().then((r) => setPeptides(r.peptides)).catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [gen, on, setPeptides]);
+  if (todayError) return <p className="error">{todayError}</p>;
+  if (!todayPayload) {
+    return appDataReady ? <p className="muted">Nothing for today yet.</p> : <p className="muted">Loading…</p>;
+  }
 
-  if (error) return <p className="error">{error}</p>;
-  if (!data) return <p className="muted">Loading…</p>;
-
-  const hero = pickTodayHero(day);
+  const data = todayPayload;
+  const hero = pickTodayHero(todayDay);
   const supporting = supportingLines(
-    day,
-    weighIns.filter((row) => row.loggedOn <= on),
+    todayDay,
+    healthWeighIns.filter((row) => row.loggedOn <= on),
     hero,
   );
   const support: { key: string; node: ReactNode }[] = [];
@@ -85,7 +53,7 @@ export function TodayPage() {
       ),
     });
   }
-  const todayWorkouts = todaysWorkouts(workouts, on);
+  const workouts = todaysWorkouts(todayWorkouts, on);
 
   return (
     <>
@@ -113,9 +81,9 @@ export function TodayPage() {
         />
       )}
 
-      {todayWorkouts.length > 0 ? (
+      {workouts.length > 0 ? (
         <div className="stack workouts">
-          {todayWorkouts.map((w) => (
+          {workouts.map((w) => (
             <article className="card workout" key={w.id}>
               <strong>{w.name}</strong>
               <span>
