@@ -19,6 +19,7 @@ export const SQLITE_SCHEMA = [
     unit TEXT NOT NULL,
     color TEXT NOT NULL,
     last_amount REAL,
+    schedule TEXT NOT NULL DEFAULT '{"days":[0,1,2,3,4,5,6],"morning":true,"evening":false}',
     created_at TEXT NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS vials (
@@ -131,6 +132,7 @@ export const POSTGRES_SCHEMA = [
     unit text NOT NULL,
     color text NOT NULL,
     last_amount double precision,
+    schedule text NOT NULL DEFAULT '{"days":[0,1,2,3,4,5,6],"morning":true,"evening":false}',
     created_at timestamptz NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS vials (
@@ -222,6 +224,7 @@ export const POSTGRES_SCHEMA = [
   )`,
   `CREATE INDEX IF NOT EXISTS identities_user ON identities(user_id)`,
   `CREATE INDEX IF NOT EXISTS webauthn_credentials_user ON webauthn_credentials(user_id)`,
+  `ALTER TABLE peptides ADD COLUMN IF NOT EXISTS schedule text NOT NULL DEFAULT '{"days":[0,1,2,3,4,5,6],"morning":true,"evening":false}'`,
 ];
 
 export function schemaFor(dialect: "sqlite" | "postgres"): string[] {

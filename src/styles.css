@@ -487,6 +487,54 @@ html.reduce-effects {
   text-decoration: none;
   color: inherit;
 }
+.vial-schedule-row .list-row { padding-bottom: 14px; }
+.expand-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--solid-2);
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+.expand-btn:hover { color: var(--text); }
+.chevron { transition: transform 0.15s ease; }
+.chevron.open { transform: rotate(180deg); }
+.schedule-panel {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--line);
+}
+.schedule-editor { display: grid; gap: 14px; padding-top: 14px; }
+.schedule-block { display: grid; gap: 8px; }
+.schedule-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.day-pills, .time-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.day-pill, .time-pill {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--solid-2);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.day-pill.on, .time-pill.on {
+  background: var(--accent-dim);
+  border-color: transparent;
+  color: var(--text);
+}
+.day-pill:disabled, .time-pill:disabled { opacity: 0.6; cursor: default; }
 .muted { color: var(--muted); font-size: 13px; }
 .error { color: var(--red); font-size: 13px; margin: 8px 0; }
 

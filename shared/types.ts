@@ -66,12 +66,16 @@ export type UserPublic = {
   createdAt: string;
 };
 
+export type { PeptideSchedule, Weekday } from "./schedule.js";
+export { DEFAULT_PEPTIDE_SCHEDULE, WEEKDAY_LABELS } from "./schedule.js";
+
 export type Peptide = {
   id: string;
   name: string;
   unit: PeptideUnit;
   color: string;
   lastAmount: number | null;
+  schedule: import("./schedule.js").PeptideSchedule;
   createdAt: string;
 };
 
