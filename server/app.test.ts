@@ -632,6 +632,7 @@ describe("design scaffold locks", () => {
     expect(boot).toMatch(/aria-label="Loading Helix"/);
     expect(boot).toMatch(/calibrating/);
     expect(css).toMatch(/\.boot-helix/);
+    expect(css).toMatch(/--boot-accent/);
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
   });
 

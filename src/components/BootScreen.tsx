@@ -19,6 +19,7 @@ export function BootScreen() {
         <div className="boot-halo" />
         <div className="boot-ring boot-ring-a" />
         <div className="boot-ring boot-ring-b" />
+        <div className="boot-ring boot-ring-c" />
         <div className="boot-core">
           <div className="boot-helix">
             {Array.from({ length: RUNG_COUNT }, (_, i) => (

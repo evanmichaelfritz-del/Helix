@@ -674,15 +674,21 @@ html.reduce-effects {
 .brand-mark { width: 28px; height: 28px; }
 
 .boot {
+  --boot-accent: var(--accent);
+  --boot-ink: var(--text);
   min-height: 100dvh;
   display: grid;
   place-content: center;
   place-items: center;
-  gap: 22px;
+  gap: 20px;
   position: relative;
   overflow: hidden;
   padding: 24px;
   background: var(--bg);
+}
+html.light .boot {
+  --boot-accent: #107862;
+  --boot-ink: #14141a;
 }
 .boot-fx {
   position: absolute;
@@ -691,43 +697,43 @@ html.reduce-effects {
 }
 .boot-wash {
   position: absolute;
-  inset: -20% -10% auto;
-  height: 70%;
+  inset: -10% -8% auto;
+  height: 78%;
   background:
-    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 58%),
-    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 42%);
+    radial-gradient(ellipse at 50% 8%, color-mix(in srgb, var(--boot-accent) 34%, transparent), transparent 56%),
+    radial-gradient(circle at 80% 16%, color-mix(in srgb, var(--boot-accent) 16%, transparent), transparent 40%);
 }
 .boot-grid {
   position: absolute;
   inset: 0;
-  opacity: 0.22;
+  opacity: 0.34;
   background-image:
-    linear-gradient(color-mix(in srgb, var(--text) 10%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--text) 10%, transparent) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at 50% 42%, #000 12%, transparent 72%);
+    linear-gradient(color-mix(in srgb, var(--boot-ink) 14%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--boot-ink) 14%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at 50% 42%, #000 18%, transparent 70%);
 }
 .boot-scan {
   position: absolute;
   left: 0;
   right: 0;
-  height: 28%;
+  height: 22%;
   background: linear-gradient(
     to bottom,
     transparent,
-    color-mix(in srgb, var(--accent) 8%, transparent),
+    color-mix(in srgb, var(--boot-accent) 16%, transparent),
     transparent
   );
   animation: boot-sweep 3.6s ease-in-out infinite;
 }
 .boot-motes i {
   position: absolute;
-  width: 3px;
-  height: 3px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
-  opacity: 0.55;
+  background: var(--boot-accent);
+  box-shadow: 0 0 12px var(--boot-accent);
+  opacity: 0.7;
   animation: boot-mote 5.8s ease-in-out infinite;
 }
 .boot-motes i:nth-child(1) { left: 16%; top: 24%; animation-delay: 0s; }
@@ -738,17 +744,17 @@ html.reduce-effects {
 
 .boot-stage {
   position: relative;
-  width: min(236px, 72vw);
+  width: min(280px, 78vw);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
 }
 .boot-halo {
   position: absolute;
-  inset: 18%;
+  inset: 14%;
   border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 32%, transparent), transparent 68%);
-  filter: blur(16px);
+  background: radial-gradient(circle, color-mix(in srgb, var(--boot-accent) 48%, transparent), transparent 70%);
+  filter: blur(18px);
   animation: boot-breathe 2.6s ease-in-out infinite;
 }
 .boot-ring {
@@ -757,24 +763,29 @@ html.reduce-effects {
   pointer-events: none;
 }
 .boot-ring-a {
-  inset: 6%;
+  inset: 4%;
   background: repeating-conic-gradient(
     from 0deg,
-    transparent 0 9deg,
-    color-mix(in srgb, var(--accent) 42%, transparent) 9deg 9.7deg
+    transparent 0 7deg,
+    color-mix(in srgb, var(--boot-accent) 78%, transparent) 7deg 8.1deg
   );
-  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 1px));
   animation: boot-spin 22s linear infinite;
 }
 .boot-ring-b {
-  inset: 16%;
-  border: 1px dashed color-mix(in srgb, var(--text) 18%, transparent);
+  inset: 14%;
+  border: 1.5px dashed color-mix(in srgb, var(--boot-ink) 38%, transparent);
   animation: boot-spin 16s linear infinite reverse;
 }
+.boot-ring-c {
+  inset: 24%;
+  border: 1px solid color-mix(in srgb, var(--boot-accent) 42%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--boot-accent) 22%, transparent);
+}
 .boot-core {
-  width: 92px;
-  height: 164px;
-  perspective: 700px;
+  width: 108px;
+  height: 176px;
+  perspective: 760px;
 }
 .boot-helix {
   position: relative;
@@ -789,15 +800,15 @@ html.reduce-effects {
   left: 0;
   right: 0;
   height: 2px;
-  top: calc(var(--i) * 10px + 4px);
+  top: calc(var(--i) * 10.6px + 2px);
   transform: rotateY(calc(var(--i) * 24deg));
   transform-style: preserve-3d;
   background: linear-gradient(
     90deg,
-    transparent 4%,
-    color-mix(in srgb, var(--accent) 55%, transparent),
-    color-mix(in srgb, var(--text) 35%, transparent),
-    transparent 96%
+    transparent 2%,
+    color-mix(in srgb, var(--boot-accent) 80%, transparent),
+    color-mix(in srgb, var(--boot-ink) 45%, transparent),
+    transparent 98%
   );
   animation: boot-rung 2.2s ease-in-out infinite;
   animation-delay: calc(var(--i) * -90ms);
@@ -823,30 +834,30 @@ html.reduce-effects {
   content: "";
   position: absolute;
   top: 50%;
-  width: 9px;
-  height: 9px;
-  margin-top: -4.5px;
+  width: 11px;
+  height: 11px;
+  margin-top: -5.5px;
   border-radius: 50%;
 }
 .boot-helix i::before {
-  left: -1px;
-  background: var(--accent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 80%, transparent);
+  left: -2px;
+  background: var(--boot-accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--boot-accent) 90%, transparent);
 }
 .boot-helix i::after {
-  right: -1px;
-  background: var(--text);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--text) 35%, transparent);
+  right: -2px;
+  background: var(--boot-ink);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--boot-ink) 40%, transparent);
 }
 
 .boot-word {
-  margin: 8px 0 0;
-  font-size: 15px;
+  margin: 4px 0 0;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.46em;
   text-indent: 0.46em;
   text-transform: uppercase;
-  color: var(--text);
+  color: var(--boot-ink);
 }
 .boot-word span {
   display: inline-block;
@@ -858,19 +869,19 @@ html.reduce-effects {
 .boot-word span:nth-child(4) { animation-delay: 270ms; }
 .boot-word span:nth-child(5) { animation-delay: 360ms; }
 .boot-meter {
-  width: 88px;
-  height: 2px;
+  width: 120px;
+  height: 3px;
   border-radius: 99px;
-  background: var(--line);
+  background: color-mix(in srgb, var(--boot-ink) 16%, transparent);
   overflow: hidden;
 }
 .boot-meter i {
   display: block;
   height: 100%;
-  width: 38%;
+  width: 42%;
   border-radius: inherit;
-  background: var(--accent);
-  box-shadow: 0 0 12px var(--accent);
+  background: var(--boot-accent);
+  box-shadow: 0 0 16px var(--boot-accent);
   animation: boot-meter 1.35s ease-in-out infinite;
 }
 .boot-kicker {
@@ -928,11 +939,4 @@ html.reduce-effects {
   .boot-helix { transform: rotateY(-28deg); }
   .boot-helix i { opacity: 0.85; }
   .boot-word span { opacity: 1; }
-}
-
-html.light .boot-grid { opacity: 0.16; }
-html.light .boot-wash {
-  background:
-    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 58%),
-    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 42%);
 }
