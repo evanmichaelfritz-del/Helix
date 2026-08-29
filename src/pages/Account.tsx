@@ -29,8 +29,15 @@ export function AccountPage() {
       persistHelixTheme(partial.theme);
     }
     applyChrome(next);
-    const res = await client.patchMe({ settings: next });
-    setUser(res.user);
+    setUser({ ...account, settings: next });
+    try {
+      const res = await client.patchMe({ settings: next });
+      setUser(res.user);
+    } catch (err: unknown) {
+      applyChrome(s);
+      setUser(account);
+      setMsg(err instanceof ApiError ? err.message : "Could not save settings.");
+    }
   }
 
   const account = user;

@@ -87,26 +87,29 @@ export type WorkoutRow = {
   created_at: string;
 };
 
-export function parseSettings(raw: string): UserSettings {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+export function parseSettings(raw: unknown): UserSettings {
   try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return { ...DEFAULT_SETTINGS };
-    const obj = parsed as Record<string, unknown>;
+    const parsed: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!isRecord(parsed)) return { ...DEFAULT_SETTINGS };
     return {
       theme:
-        obj.theme === "light" || obj.theme === "dark" || obj.theme === "system"
-          ? obj.theme
+        parsed.theme === "light" || parsed.theme === "dark" || parsed.theme === "system"
+          ? parsed.theme
           : DEFAULT_SETTINGS.theme,
-      faceId: obj.faceId === true,
-      reduceEffects: obj.reduceEffects === true,
-      weightUnit: obj.weightUnit === "lb" ? "lb" : "kg",
+      faceId: parsed.faceId === true,
+      reduceEffects: parsed.reduceEffects === true,
+      weightUnit: parsed.weightUnit === "lb" ? "lb" : "kg",
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
 }
 
-export function toPublicUser(row: UserRow): UserPublic {
+export function toPublicUser(row: Omit<UserRow, "settings"> & { settings: unknown }): UserPublic {
   return {
     id: row.id,
     email: row.email,
