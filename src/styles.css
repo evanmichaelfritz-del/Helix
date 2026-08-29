@@ -672,3 +672,271 @@ html.reduce-effects {
 }
 .cal .dot { box-shadow: inset 0 -3px 0 var(--accent); }
 .brand-mark { width: 28px; height: 28px; }
+
+.boot {
+  --boot-accent: var(--accent);
+  --boot-ink: var(--text);
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  place-items: center;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+  padding: 24px;
+  background: var(--bg);
+}
+html.light .boot {
+  --boot-accent: #107862;
+  --boot-ink: #14141a;
+}
+.boot-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.boot-wash {
+  position: absolute;
+  inset: -10% -8% auto;
+  height: 78%;
+  background:
+    radial-gradient(ellipse at 50% 8%, color-mix(in srgb, var(--boot-accent) 34%, transparent), transparent 56%),
+    radial-gradient(circle at 80% 16%, color-mix(in srgb, var(--boot-accent) 16%, transparent), transparent 40%);
+}
+.boot-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.34;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--boot-ink) 14%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--boot-ink) 14%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at 50% 42%, #000 18%, transparent 70%);
+}
+.boot-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 22%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--boot-accent) 16%, transparent),
+    transparent
+  );
+  animation: boot-sweep 3.6s ease-in-out infinite;
+}
+.boot-motes i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--boot-accent);
+  box-shadow: 0 0 12px var(--boot-accent);
+  opacity: 0.7;
+  animation: boot-mote 5.8s ease-in-out infinite;
+}
+.boot-motes i:nth-child(1) { left: 16%; top: 24%; animation-delay: 0s; }
+.boot-motes i:nth-child(2) { left: 78%; top: 18%; animation-delay: -1.2s; }
+.boot-motes i:nth-child(3) { left: 22%; top: 72%; animation-delay: -2.1s; }
+.boot-motes i:nth-child(4) { left: 84%; top: 68%; animation-delay: -3.4s; }
+.boot-motes i:nth-child(5) { left: 50%; top: 12%; animation-delay: -4.4s; }
+
+.boot-stage {
+  position: relative;
+  width: min(280px, 78vw);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+.boot-halo {
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--boot-accent) 48%, transparent), transparent 70%);
+  filter: blur(18px);
+  animation: boot-breathe 2.6s ease-in-out infinite;
+}
+.boot-ring {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.boot-ring-a {
+  inset: 4%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    transparent 0 7deg,
+    color-mix(in srgb, var(--boot-accent) 78%, transparent) 7deg 8.1deg
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 1px));
+  animation: boot-spin 22s linear infinite;
+}
+.boot-ring-b {
+  inset: 14%;
+  border: 1.5px dashed color-mix(in srgb, var(--boot-ink) 38%, transparent);
+  animation: boot-spin 16s linear infinite reverse;
+}
+.boot-ring-c {
+  inset: 24%;
+  border: 1px solid color-mix(in srgb, var(--boot-accent) 42%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--boot-accent) 22%, transparent);
+}
+.boot-core {
+  width: 108px;
+  height: 176px;
+  perspective: 760px;
+}
+.boot-helix {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform: rotateY(-28deg);
+  transform-style: preserve-3d;
+  animation: boot-spin-y 5.6s linear infinite;
+}
+.boot-helix i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  top: calc(var(--i) * 10.6px + 2px);
+  transform: rotateY(calc(var(--i) * 24deg));
+  transform-style: preserve-3d;
+  background: linear-gradient(
+    90deg,
+    transparent 2%,
+    color-mix(in srgb, var(--boot-accent) 80%, transparent),
+    color-mix(in srgb, var(--boot-ink) 45%, transparent),
+    transparent 98%
+  );
+  animation: boot-rung 2.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -90ms);
+}
+.boot-helix i:nth-child(1) { --i: 0; }
+.boot-helix i:nth-child(2) { --i: 1; }
+.boot-helix i:nth-child(3) { --i: 2; }
+.boot-helix i:nth-child(4) { --i: 3; }
+.boot-helix i:nth-child(5) { --i: 4; }
+.boot-helix i:nth-child(6) { --i: 5; }
+.boot-helix i:nth-child(7) { --i: 6; }
+.boot-helix i:nth-child(8) { --i: 7; }
+.boot-helix i:nth-child(9) { --i: 8; }
+.boot-helix i:nth-child(10) { --i: 9; }
+.boot-helix i:nth-child(11) { --i: 10; }
+.boot-helix i:nth-child(12) { --i: 11; }
+.boot-helix i:nth-child(13) { --i: 12; }
+.boot-helix i:nth-child(14) { --i: 13; }
+.boot-helix i:nth-child(15) { --i: 14; }
+.boot-helix i:nth-child(16) { --i: 15; }
+.boot-helix i::before,
+.boot-helix i::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+}
+.boot-helix i::before {
+  left: -2px;
+  background: var(--boot-accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--boot-accent) 90%, transparent);
+}
+.boot-helix i::after {
+  right: -2px;
+  background: var(--boot-ink);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--boot-ink) 40%, transparent);
+}
+
+.boot-word {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.46em;
+  text-indent: 0.46em;
+  text-transform: uppercase;
+  color: var(--boot-ink);
+}
+.boot-word span {
+  display: inline-block;
+  animation: boot-letter 1.8s ease-in-out infinite;
+}
+.boot-word span:nth-child(1) { animation-delay: 0ms; }
+.boot-word span:nth-child(2) { animation-delay: 90ms; }
+.boot-word span:nth-child(3) { animation-delay: 180ms; }
+.boot-word span:nth-child(4) { animation-delay: 270ms; }
+.boot-word span:nth-child(5) { animation-delay: 360ms; }
+.boot-meter {
+  width: 120px;
+  height: 3px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--boot-ink) 16%, transparent);
+  overflow: hidden;
+}
+.boot-meter i {
+  display: block;
+  height: 100%;
+  width: 42%;
+  border-radius: inherit;
+  background: var(--boot-accent);
+  box-shadow: 0 0 16px var(--boot-accent);
+  animation: boot-meter 1.35s ease-in-out infinite;
+}
+.boot-kicker {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+@keyframes boot-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes boot-spin-y {
+  to { transform: rotateY(332deg); }
+}
+@keyframes boot-breathe {
+  0%, 100% { opacity: 0.55; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+@keyframes boot-sweep {
+  0% { transform: translateY(-40%); }
+  100% { transform: translateY(280%); }
+}
+@keyframes boot-mote {
+  0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.2; }
+  50% { transform: translate3d(12px, -18px, 0); opacity: 0.8; }
+}
+@keyframes boot-rung {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+@keyframes boot-letter {
+  0%, 100% { opacity: 0.38; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+@keyframes boot-meter {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(280%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-scan,
+  .boot-motes i,
+  .boot-halo,
+  .boot-ring,
+  .boot-helix,
+  .boot-helix i,
+  .boot-word span,
+  .boot-meter i {
+    animation: none;
+  }
+  .boot-helix { transform: rotateY(-28deg); }
+  .boot-helix i { opacity: 0.85; }
+  .boot-word span { opacity: 1; }
+}

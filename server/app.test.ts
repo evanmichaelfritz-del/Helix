@@ -620,6 +620,22 @@ describe("design scaffold locks", () => {
     expect(css).toMatch(/\.helix-main/);
   });
 
+  it("keeps a designed boot screen on first paint and while session is pending", () => {
+    const html = readFileSync("index.html", "utf8");
+    const app = readFileSync("src/App.tsx", "utf8");
+    const boot = readFileSync("src/components/BootScreen.tsx", "utf8");
+    const css = readFileSync("src/styles.css", "utf8");
+    expect(html).toMatch(/class="boot"/);
+    expect(html).toMatch(/href="\/src\/styles\.css"/);
+    expect(app).toMatch(/<BootScreen\s*\/>/);
+    expect(app).not.toMatch(/<p className="muted">Helix<\/p>/);
+    expect(boot).toMatch(/aria-label="Loading Helix"/);
+    expect(boot).toMatch(/calibrating/);
+    expect(css).toMatch(/\.boot-helix/);
+    expect(css).toMatch(/--boot-accent/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
+  });
+
   it("keeps the FAB visible at desktop widths", () => {
     const css = readFileSync("src/styles.css", "utf8");
     expect(css).not.toMatch(/@media \(min-width:\s*768px\)\s*\{[^}]*\.fab[^{]*\{[^}]*display:\s*none/);

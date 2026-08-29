@@ -20,6 +20,7 @@
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Sora:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="/src/styles.css" />
     <script>
       (function () {
         var KEY = "helix-theme";
@@ -45,7 +46,31 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot" role="status" aria-live="polite" aria-label="Loading Helix">
+        <div class="boot-fx" aria-hidden="true">
+          <div class="boot-wash"></div>
+          <div class="boot-grid"></div>
+          <div class="boot-scan"></div>
+          <div class="boot-motes"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="boot-stage" aria-hidden="true">
+          <div class="boot-halo"></div>
+          <div class="boot-ring boot-ring-a"></div>
+          <div class="boot-ring boot-ring-b"></div>
+          <div class="boot-ring boot-ring-c"></div>
+          <div class="boot-core">
+            <div class="boot-helix">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+          </div>
+        </div>
+        <p class="boot-word"><span>H</span><span>E</span><span>L</span><span>I</span><span>X</span></p>
+        <div class="boot-meter" aria-hidden="true"><i></i></div>
+        <p class="boot-kicker">calibrating</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
