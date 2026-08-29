@@ -5,6 +5,7 @@ import { ApiError, client } from "./lib/api.ts";
 import { AppStateProvider, useAppState } from "./lib/state.tsx";
 import { AppDataLoader } from "./lib/app-data.tsx";
 import { Shell } from "./components/Shell.tsx";
+import { BootScreen } from "./components/BootScreen.tsx";
 import { Sheets, ToastBar } from "./components/Sheets.tsx";
 import { AuthPage } from "./pages/Auth.tsx";
 import { AccountPage } from "./pages/Account.tsx";
@@ -67,13 +68,9 @@ function Root() {
     }));
   }, [user]);
 
-  if (!ready) {
-    return (
-      <div className="auth">
-        <p className="muted">Helix</p>
-      </div>
-    );
-  }
+  const holdBoot =
+    import.meta.env.DEV && new URLSearchParams(window.location.search).get("boot") === "1";
+  if (!ready || holdBoot) return <BootScreen />;
   if (!user) return <AuthPage onSignedUp={() => setSavePasskey(true)} />;
   if (savePasskey) {
     return (
