@@ -19,6 +19,11 @@ export function dayHeading(on: string): string {
   return `${weekday} ${d}`;
 }
 
+export function shortDate(on: string): string {
+  const [y, m, d] = on.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export function hoursLabel(hours: number): string {
   const h = Math.floor(hours);
   const min = Math.round((hours - h) * 60);

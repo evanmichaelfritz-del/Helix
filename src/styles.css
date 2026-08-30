@@ -606,6 +606,46 @@ html.reduce-effects {
 }
 .liveline-fill { fill: color-mix(in srgb, var(--accent) 18%, transparent); }
 .liveline-stroke { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
+.weight-start {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.weight-start .down { color: var(--green); }
+.weight-start .up { color: var(--amber); }
+.weight-line { margin-top: 4px; }
+.weight-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 22px;
+  font-size: 13px;
+}
+.weight-readout strong { font-size: 15px; }
+.weight-liveline {
+  touch-action: none;
+  cursor: crosshair;
+  margin-top: 4px;
+}
+.liveline-dot {
+  fill: var(--bg);
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+.liveline-dot.on { fill: currentColor; }
+.liveline-cursor {
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.weight-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-family: var(--mono);
+}
 
 .drop {
   border: 1px dashed var(--border-strong);

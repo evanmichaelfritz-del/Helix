@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useLocation } from "react-router-dom";
-import type { ImportResult } from "@shared/types.ts";
+import type { ImportResult, WeighIn, WeightUnit } from "@shared/types.ts";
 import { parseImportFile } from "@shared/import/index.ts";
+import { LIVELINE_H, LIVELINE_W, livelineIndexAt, livelinePoints, livelineViewX } from "@shared/liveline.ts";
 import { ApiError, client } from "../lib/api.ts";
-import { formatWeight, hoursLabel } from "../lib/format.ts";
+import { formatWeight, hoursLabel, shortDate, signedDelta } from "../lib/format.ts";
 import { useAppState } from "../lib/state.tsx";
 
 export function VitalsPage() {
@@ -19,7 +20,7 @@ export function VitalsPage() {
   }, [location.hash, healthDays.length]);
 
   const series = useMemo(() => trendSeries(healthDays), [healthDays]);
-  const weights = healthWeighIns.slice(-14).map((w) => w.kg);
+  const recentWeights = healthWeighIns.slice(-28);
 
   return (
     <>
@@ -41,15 +42,7 @@ export function VitalsPage() {
         )}
       </article>
 
-      {weights.length > 0 ? (
-        <article className="card today-hero section">
-          <p className="kicker">Weight</p>
-          <div className="hero-value" style={{ fontSize: 36 }}>
-            {formatWeight(weights[weights.length - 1], unit)}
-          </div>
-          <Liveline values={weights} />
-        </article>
-      ) : null}
+      {recentWeights.length > 0 ? <WeightCard weighIns={recentWeights} unit={unit} /> : null}
 
       {healthWorkouts.length > 0 ? (
         <div className="stack section">
@@ -150,22 +143,124 @@ function trendSeries(days: import("@shared/types.ts").HealthDay[]): {
   return { label: "Trend", values: [], latest: "", unit: "" };
 }
 
+function WeightCard(props: { weighIns: WeighIn[]; unit: WeightUnit }) {
+  const start = props.weighIns[0];
+  const latest = props.weighIns[props.weighIns.length - 1];
+  if (!start || !latest) return null;
+  const delta = latest.kg - start.kg;
+  return (
+    <article className="card today-hero section">
+      <p className="kicker">Weight</p>
+      <div className="hero-value" style={{ fontSize: 36 }}>
+        {formatWeight(latest.kg, props.unit)}
+      </div>
+      <p className="weight-start">
+        from {formatWeight(start.kg, props.unit)} on {shortDate(start.loggedOn)}
+        {props.weighIns.length > 1 ? (
+          <span className={delta < 0 ? "down" : delta > 0 ? "up" : undefined}>
+            {" "}
+            · {signedDelta(delta, props.unit)}
+          </span>
+        ) : null}
+      </p>
+      <WeightLine weighIns={props.weighIns} unit={props.unit} />
+    </article>
+  );
+}
+
+function WeightLine(props: { weighIns: WeighIn[]; unit: WeightUnit }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragging = useRef(false);
+  const [active, setActive] = useState<number | null>(null);
+  const values = props.weighIns.map((row) => row.kg);
+  if (values.length < 2) return null;
+  const { min, max, pts } = livelinePoints(values);
+  const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
+  const area = `4,${LIVELINE_H - 4} ${line} ${LIVELINE_W - 4},${LIVELINE_H - 4}`;
+  const reading = active != null ? props.weighIns[active] : null;
+  const cursor = active != null ? pts[active] : null;
+
+  function indexFromClientX(clientX: number): number {
+    const svg = svgRef.current;
+    if (!svg) return 0;
+    return livelineIndexAt(livelineViewX(clientX, svg.getBoundingClientRect()), values.length);
+  }
+
+  function onPointerDown(event: PointerEvent<SVGSVGElement>) {
+    dragging.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setActive(indexFromClientX(event.clientX));
+  }
+
+  function onPointerMove(event: PointerEvent<SVGSVGElement>) {
+    if (!dragging.current && event.pointerType !== "mouse") return;
+    setActive(indexFromClientX(event.clientX));
+  }
+
+  function onPointerUp(event: PointerEvent<SVGSVGElement>) {
+    dragging.current = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (event.pointerType !== "mouse") setActive(null);
+  }
+
+  return (
+    <div className="weight-line">
+      <div className="weight-readout" aria-live="polite">
+        {reading ? (
+          <>
+            <strong>{formatWeight(reading.kg, props.unit)}</strong>
+            <span>{shortDate(reading.loggedOn)}</span>
+          </>
+        ) : (
+          <span className="muted">Drag the line to read a day</span>
+        )}
+      </div>
+      <svg
+        ref={svgRef}
+        className="liveline weight-liveline"
+        viewBox={`0 0 ${LIVELINE_W} ${LIVELINE_H}`}
+        role="img"
+        aria-label={`Weight from ${formatWeight(min, props.unit)} to ${formatWeight(max, props.unit)}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onPointerLeave={() => {
+          if (!dragging.current) setActive(null);
+        }}
+      >
+        <polygon className="liveline-fill" points={area} />
+        <polyline className="liveline-stroke" points={line} />
+        {pts.map((pt) => (
+          <circle
+            key={pt.index}
+            className={pt.index === active ? "liveline-dot on" : "liveline-dot"}
+            cx={pt.x}
+            cy={pt.y}
+            r={pt.index === active ? 4.5 : 2.6}
+          />
+        ))}
+        {cursor ? (
+          <line className="liveline-cursor" x1={cursor.x} y1={6} x2={cursor.x} y2={LIVELINE_H - 6} />
+        ) : null}
+      </svg>
+      <div className="weight-axis">
+        <span>{shortDate(props.weighIns[0].loggedOn)}</span>
+        <span>{shortDate(props.weighIns[props.weighIns.length - 1].loggedOn)}</span>
+      </div>
+    </div>
+  );
+}
+
 function Liveline({ values }: { values: number[] }) {
   if (values.length < 2) return null;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
-  const w = 320;
-  const h = 84;
-  const pts = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * (w - 8) + 4;
-    const y = h - 8 - ((v - min) / span) * (h - 16);
-    return { x, y };
-  });
+  const { pts } = livelinePoints(values);
   const line = pts.map((p) => `${p.x},${p.y}`).join(" ");
-  const area = `4,${h - 4} ${line} ${w - 4},${h - 4}`;
+  const area = `4,${LIVELINE_H - 4} ${line} ${LIVELINE_W - 4},${LIVELINE_H - 4}`;
   return (
-    <svg className="liveline" viewBox={`0 0 ${w} ${h}`} aria-hidden>
+    <svg className="liveline" viewBox={`0 0 ${LIVELINE_W} ${LIVELINE_H}`} aria-hidden>
       <polygon className="liveline-fill" points={area} />
       <polyline className="liveline-stroke" points={line} />
     </svg>

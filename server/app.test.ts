@@ -677,6 +677,9 @@ describe("design scaffold locks", () => {
     expect(vitals).toMatch(/Whoop CSV/);
     expect(vitals).toMatch(/Apple Health export/);
     expect(vitals).toMatch(/function Liveline/);
+    expect(vitals).toMatch(/function WeightLine/);
+    expect(vitals).toMatch(/from \{formatWeight\(start\.kg/);
+    expect(vitals).toMatch(/Drag the line to read a day/);
     expect(shell).toMatch(/helix-main/);
     expect(shell).toMatch(/vial-runway/);
     expect(shell).toMatch(/peptide-swatch/);
