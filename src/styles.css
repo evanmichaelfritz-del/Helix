@@ -657,6 +657,26 @@ html.reduce-effects {
   padding: 24px;
 }
 .lock .card { padding: 28px; width: min(360px, 100%); text-align: center; }
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+}
+.cal-nav strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.cal-nav button {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--solid-2);
+  font-size: 20px;
+  line-height: 1;
+}
 .cal {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -670,7 +690,39 @@ html.reduce-effects {
   background: transparent;
   font-size: 13px;
 }
-.cal .dot { box-shadow: inset 0 -3px 0 var(--accent); }
+.cal button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 2px 6px;
+}
+.cal button.today { font-weight: 600; }
+.cal button.on {
+  background: var(--accent-dim);
+  border-color: var(--line);
+}
+.cal-num { line-height: 1; }
+.cal-dots {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  min-height: 6px;
+}
+.cal-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: block;
+}
+.cal-day {
+  margin-top: 14px;
+  padding: 16px 16px 10px;
+}
+.cal-day .list-row { padding: 10px 0; }
+.cal-day .meta { min-width: 0; }
+.cal-day .meta strong { display: block; font-size: 15px; }
 .brand-mark { width: 28px; height: 28px; }
 
 .boot {

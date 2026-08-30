@@ -636,6 +636,18 @@ describe("design scaffold locks", () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
   });
 
+  it("shows peptide color dots on Calendar and opens the day for names", () => {
+    const cal = readFileSync("src/pages/Calendar.tsx", "utf8");
+    const css = readFileSync("src/styles.css", "utf8");
+    expect(cal).toMatch(/dosesByDay/);
+    expect(cal).toMatch(/cal-dots/);
+    expect(cal).toMatch(/row\.name/);
+    expect(cal).toMatch(/No peptides logged/);
+    expect(cal).toMatch(/setOpenOn/);
+    expect(css).toMatch(/\.cal-dots i/);
+    expect(css).not.toMatch(/\.cal \.dot \{ box-shadow: inset 0 -3px 0 var\(--accent\)/);
+  });
+
   it("keeps the FAB visible at desktop widths", () => {
     const css = readFileSync("src/styles.css", "utf8");
     expect(css).not.toMatch(/@media \(min-width:\s*768px\)\s*\{[^}]*\.fab[^{]*\{[^}]*display:\s*none/);
