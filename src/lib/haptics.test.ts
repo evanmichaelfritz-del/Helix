@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HAPTIC_TAP_MS, HAPTIC_TOGGLE_MS, haptic } from "./haptics.ts";
+import { HAPTIC_TAP_MS, HAPTIC_TOGGLE_MS, haptic, isAppleTouch } from "./haptics.ts";
 
 describe("haptic", () => {
   it("sends a short pulse for a tap", () => {
@@ -31,5 +31,12 @@ describe("haptic", () => {
         throw new Error("blocked");
       }),
     ).toBe(false);
+  });
+
+  it("detects iPhone and iPad user agents", () => {
+    expect(isAppleTouch("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", "iPhone", 5)).toBe(true);
+    expect(isAppleTouch("Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)", "iPad", 5)).toBe(true);
+    expect(isAppleTouch("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)", "MacIntel", 0)).toBe(false);
+    expect(isAppleTouch("Mozilla/5.0 (Linux; Android 14)", "Linux armv8l", 5)).toBe(false);
   });
 });
