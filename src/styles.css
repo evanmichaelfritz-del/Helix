@@ -362,7 +362,8 @@ html.reduce-effects {
   padding: 10px 14px;
   font-size: 13px;
 }
-.fab:active, .fab-item:active { transform: scale(0.9); }
+.fab:active, .fab.is-pressing,
+.fab-item:active, .fab-item.is-pressing { transform: scale(0.9); }
 
 .sheet-backdrop {
   position: fixed;
@@ -413,7 +414,8 @@ html.reduce-effects {
   box-shadow: var(--glass-inset);
   transition: transform 0.24s var(--spring);
 }
-.stepper button:active { transform: scale(0.9); }
+.stepper button:active,
+.stepper button.is-pressing { transform: scale(0.9); }
 .stepper input {
   width: 120px;
   text-align: center;
@@ -454,7 +456,7 @@ html.reduce-effects {
 }
 .btn:hover { background: color-mix(in srgb, var(--primary) 88%, transparent); }
 .btn.ghost:hover { background: var(--glass-strong); }
-.btn:active { transform: scale(0.92); }
+.btn:active, .btn.is-pressing { transform: scale(0.92); }
 .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
 .row-btns { display: grid; gap: 8px; margin-top: 8px; }
 
@@ -521,7 +523,8 @@ html.reduce-effects {
   background: color-mix(in srgb, var(--accent) 22%, var(--glass));
   border-color: transparent;
 }
-.tabs button:active { transform: scale(0.94); }
+.tabs button:active,
+.tabs button.is-pressing { transform: scale(0.94); }
 
 .subnav {
   display: flex;
@@ -585,7 +588,8 @@ html.reduce-effects {
   font-size: 12px;
   font-weight: 600;
 }
-.quick-log-btn:active { transform: scale(0.9); }
+.quick-log-btn:active,
+.quick-log-btn.is-pressing { transform: scale(0.9); }
 .quick-log-btn:disabled { opacity: 0.6; cursor: default; transform: none; }
 .vial-schedule-row .list-row { padding-bottom: 14px; }
 .expand-btn {
@@ -603,7 +607,8 @@ html.reduce-effects {
   box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.2);
   transition: transform 0.24s var(--spring), color 0.15s ease;
 }
-.expand-btn:active { transform: scale(0.9); }
+.expand-btn:active,
+.expand-btn.is-pressing { transform: scale(0.9); }
 .expand-btn:hover { color: var(--text); }
 .chevron { transition: transform 0.15s ease; }
 .chevron.open { transform: rotate(180deg); }
@@ -643,7 +648,8 @@ html.reduce-effects {
   border-color: transparent;
   color: var(--text);
 }
-.day-pill:active, .time-pill:active { transform: scale(0.92); }
+.day-pill:active, .day-pill.is-pressing,
+.time-pill:active, .time-pill.is-pressing { transform: scale(0.92); }
 .day-pill:disabled, .time-pill:disabled { opacity: 0.6; cursor: default; }
 .muted { color: var(--muted); font-size: 13px; }
 .error { color: var(--red); font-size: 13px; margin: 8px 0; }
@@ -697,7 +703,8 @@ html.reduce-effects {
   transition: left 0.38s var(--spring);
 }
 .toggle button.on i { left: 23px; }
-.toggle button:active { transform: scale(0.96); }
+.toggle button:active,
+.toggle button.is-pressing { transform: scale(0.94); }
 
 .liveline {
   width: 100%;
@@ -823,7 +830,8 @@ html.reduce-effects {
   box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.22);
   transition: transform 0.24s var(--spring);
 }
-.cal-nav button:active { transform: scale(0.9); }
+.cal-nav button:active,
+.cal-nav button.is-pressing { transform: scale(0.9); }
 .cal {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -1144,16 +1152,27 @@ html.light .boot {
   .boot-word span { opacity: 1; }
   .btn:active,
   .btn.ghost:active,
+  .btn.is-pressing,
   .tabs button:active,
+  .tabs button.is-pressing,
   .fab:active,
+  .fab.is-pressing,
   .fab-item:active,
+  .fab-item.is-pressing,
   .quick-log-btn:active,
+  .quick-log-btn.is-pressing,
   .expand-btn:active,
+  .expand-btn.is-pressing,
   .day-pill:active,
+  .day-pill.is-pressing,
   .time-pill:active,
+  .time-pill.is-pressing,
   .stepper button:active,
+  .stepper button.is-pressing,
   .cal-nav button:active,
-  .toggle button:active {
+  .cal-nav button.is-pressing,
+  .toggle button:active,
+  .toggle button.is-pressing {
     transform: none;
   }
 }
