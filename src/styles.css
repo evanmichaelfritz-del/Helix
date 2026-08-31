@@ -807,7 +807,6 @@ html.light .theme-overlay-backdrop {
   height: 72px;
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 .theme-mini b { display: block; }
 .theme-mini span {
@@ -822,25 +821,31 @@ html.light .theme-overlay-backdrop {
   border-radius: 4px;
 }
 .theme-mini i:last-child { width: 62%; }
-.theme-mini-dark { background: #16171d; }
+.theme-mini-dark { background: #16171d; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1); }
 .theme-mini-dark b { background: #1c1c1e; }
 .theme-mini-dark i { background: #2c2d36; }
-.theme-mini-light { background: #f4f5f8; }
+.theme-mini-light { background: #f4f5f8; box-shadow: inset 0 0 0 1px rgba(20, 20, 24, 0.14); }
 .theme-mini-light b { background: #ffffff; }
 .theme-mini-light i { background: #d8dae2; }
 .theme-mini-system {
   display: grid;
   grid-template-columns: 1fr 1fr;
   background: transparent;
-  box-shadow: none;
+  box-shadow: inset 0 0 0 1px rgba(20, 20, 24, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
   gap: 0;
+}
+html:not(.light) .theme-mini-system {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 .theme-mini-system .theme-mini {
   height: 72px;
   border-radius: 0;
+  box-shadow: none;
 }
-.theme-mini-system .theme-mini-dark { border-radius: 10px 0 0 10px; }
-.theme-mini-system .theme-mini-light { border-radius: 0 10px 10px 0; }
+.theme-mini-system .theme-mini-dark { border-radius: 0; border-right: 1px solid rgba(20, 20, 24, 0.2); }
+.theme-mini-system .theme-mini-light { border-radius: 0; }
 .theme-overlay-foot {
   display: grid;
   grid-template-columns: 1fr 1fr;
