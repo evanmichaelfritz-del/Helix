@@ -10,6 +10,14 @@ const tabs = [
   { to: "/account", label: "You", icon: <IconYou /> },
 ] as const;
 
+const dock = [
+  tabs[0],
+  { to: "/calendar", label: "Calendar", icon: <IconCal /> },
+  tabs[1],
+  tabs[2],
+  tabs[3],
+] as const;
+
 export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="app">
@@ -36,7 +44,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
       </nav>
       <nav className="dock chrome" aria-label="Primary">
-        {tabs.map((t) => (
+        {dock.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}

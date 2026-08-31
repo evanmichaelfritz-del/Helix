@@ -696,6 +696,10 @@ describe("design scaffold locks", () => {
     expect(shell).toMatch(/helix-main/);
     expect(shell).toMatch(/vial-runway/);
     expect(shell).toMatch(/peptide-swatch/);
+    expect(shell).toMatch(/\{dock\.map/);
+    expect(shell).toMatch(/to: "\/calendar"/);
+    expect(readFileSync("src/pages/Calendar.tsx", "utf8")).not.toMatch(/Desktop rail only/);
+    expect(readFileSync("src/pages/Calendar.tsx", "utf8")).not.toMatch(/Mobile keeps four tabs/);
     expect(today).not.toMatch(/sleepPerf/);
     expect(vitals).not.toMatch(/sleepPerf/);
     expect(you).not.toMatch(/sleepPerf/);
