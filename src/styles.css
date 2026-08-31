@@ -105,6 +105,15 @@ html.reduce-effects {
   animation: none !important;
 }
 
+.haptic-hit {
+  position: fixed;
+  margin: 0;
+  opacity: 0.001;
+  z-index: 90;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .chrome {
   background: var(--bg-elevated);
   backdrop-filter: var(--glass-blur);
