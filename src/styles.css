@@ -956,7 +956,18 @@ html:not(.light) .theme-mini-system {
   place-items: center;
   padding: 24px;
 }
-.lock .card { padding: 28px; width: min(360px, 100%); text-align: center; }
+.lock .card { padding: 28px; width: min(400px, 100%); text-align: left; }
+.lock-brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.lock h2 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  letter-spacing: -0.03em;
+}
 .cal-nav {
   display: flex;
   align-items: center;
