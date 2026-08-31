@@ -616,6 +616,9 @@ describe("design scaffold locks", () => {
     expect(css).toMatch(/--glass-inset/);
     expect(css).toMatch(/--spring/);
     expect(css).toMatch(/\.is-pressing/);
+    expect(css).toMatch(/\.theme-overlay/);
+    expect(readFileSync("src/components/ThemeOverlay.tsx", "utf8")).toMatch(/Display Settings/);
+    expect(readFileSync("src/pages/Account.tsx", "utf8")).toMatch(/ThemeOverlay/);
     const main = readFileSync("src/main.tsx", "utf8");
     expect(main).toMatch(/bindHaptics/);
     expect(readFileSync("src/lib/haptics.ts", "utf8")).toMatch(/HAPTIC_TOGGLE_MS/);
