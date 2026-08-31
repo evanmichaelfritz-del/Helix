@@ -733,8 +733,9 @@ html.light .theme-overlay-backdrop {
   background: rgba(40, 36, 30, 0.22);
 }
 .theme-overlay {
-  width: min(440px, 100%);
+  width: min(480px, calc(100vw - 48px));
   padding: 22px 22px 18px;
+  overflow: visible;
   animation: theme-overlay-in 0.32s var(--spring);
 }
 .theme-overlay-head {

@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { THEME_CARDS } from "@shared/theme.ts";
 import type { ThemePref } from "@shared/types.ts";
 import { applyChrome } from "../lib/chrome.ts";
@@ -31,7 +32,7 @@ export function ThemeOverlay(props: {
     props.onCancel();
   }
 
-  return (
+  return createPortal(
     <div className="theme-overlay-backdrop" onClick={revert} role="presentation">
       <div
         className="theme-overlay card"
@@ -75,7 +76,8 @@ export function ThemeOverlay(props: {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
