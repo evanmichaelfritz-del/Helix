@@ -1140,6 +1140,8 @@ html:not(.light) .theme-mini-system {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+.calc-syringe-ticks span:first-child { transform: none; }
+.calc-syringe-ticks span:last-child { transform: translateX(-100%); }
 
 .brand-mark { width: 28px; height: 28px; }
 
