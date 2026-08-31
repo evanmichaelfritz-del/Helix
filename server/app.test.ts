@@ -737,6 +737,16 @@ describe("auth page lock", () => {
     expect(chrome).toContain("helix:faceId:");
     expect(app).toContain("LockScreen");
     expect(app).toContain("unlockFaceId");
+    expect(app).toContain("Unlock with Face ID");
+    expect(app).toContain("Continue with Google");
+    expect(app).toContain("Continue with X");
+    expect(app).toContain('className="auth-or">or<');
+    expect(app).toContain("/api/auth/google");
+    expect(app).toContain("/api/auth/x");
+    expect(app).toContain("client.login");
+    expect(app).toContain("Log in");
+    expect(chrome).toContain("UNLOCKED_KEY");
+    expect(chrome).toContain("markUnlocked");
     expect(you).toContain("registerFaceId");
     expect(you).toContain("<strong>Face ID</strong>");
     expect(you).toContain("Unlock this device with Face ID");

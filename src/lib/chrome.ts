@@ -127,3 +127,13 @@ export async function unlockFaceId(userId: string): Promise<boolean> {
 export function clearFaceId(userId: string): void {
   localStorage.removeItem(KEY(userId));
 }
+
+export const UNLOCKED_KEY = "helix_unlocked";
+
+export function markUnlocked(): void {
+  sessionStorage.setItem(UNLOCKED_KEY, "1");
+}
+
+export function isSessionUnlocked(): boolean {
+  return sessionStorage.getItem(UNLOCKED_KEY) === "1";
+}

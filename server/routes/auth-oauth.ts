@@ -24,7 +24,10 @@ function redirectHome(c: AppContext, created: boolean, error?: string): Response
   const origin = appOrigin(c);
   const url = new URL(origin);
   if (error) url.searchParams.set("auth_error", error);
-  else if (created) url.searchParams.set("new", "1");
+  else {
+    if (created) url.searchParams.set("new", "1");
+    url.searchParams.set("unlocked", "1");
+  }
   return c.redirect(url.toString());
 }
 

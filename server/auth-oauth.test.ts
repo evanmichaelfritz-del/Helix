@@ -135,6 +135,7 @@ describe("oauth http callbacks", () => {
     });
     expect(res.status).toBe(302);
     expect(authError(res)).toBeNull();
+    expect(new URL(res.headers.get("location") ?? "").searchParams.get("unlocked")).toBe("1");
     const row = await db.get<{ user_id: string; provider_user_id: string }>(
       "SELECT user_id, provider_user_id FROM identities WHERE provider = ?",
       ["google"],
@@ -175,7 +176,9 @@ describe("oauth http callbacks", () => {
     });
     expect(res.status).toBe(302);
     expect(authError(res)).toBeNull();
-    expect(new URL(res.headers.get("location") ?? "").searchParams.get("new")).toBe("1");
+    const loc = new URL(res.headers.get("location") ?? "");
+    expect(loc.searchParams.get("new")).toBe("1");
+    expect(loc.searchParams.get("unlocked")).toBe("1");
     const user = await db.get<{ email: string | null; password_hash: string | null }>(
       "SELECT email, password_hash FROM users WHERE email = ?",
       ["fresh@example.com"],
