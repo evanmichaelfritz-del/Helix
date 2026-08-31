@@ -704,6 +704,19 @@ describe("design scaffold locks", () => {
     expect(vitals).not.toMatch(/sleepPerf/);
     expect(you).not.toMatch(/sleepPerf/);
   });
+
+  it("puts a peptide calculator under Protocol", () => {
+    const protocol = readFileSync("src/pages/Protocol.tsx", "utf8");
+    const calc = readFileSync("src/pages/Calculator.tsx", "utf8");
+    const app = readFileSync("src/App.tsx", "utf8");
+    expect(protocol).toMatch(/\/protocol\/calc/);
+    expect(protocol).toMatch(/>Calculator</);
+    expect(app).toMatch(/path="calc"/);
+    expect(calc).toMatch(/formulateDraw/);
+    expect(calc).toMatch(/formulateReverse/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe/);
+    expect(readFileSync("shared/peptide-calc.ts", "utf8")).toMatch(/UNITS_PER_ML = 100/);
+  });
 });
 
 describe("auth page lock", () => {
