@@ -10,6 +10,19 @@ export const THEME_OPTIONS = [
   { value: "dark", label: "Dark" },
 ] as const;
 
+export const THEME_CARDS = [
+  { value: "dark", label: "Dark Mode" },
+  { value: "light", label: "Light Mode" },
+  { value: "system", label: "System" },
+] as const;
+
+export function themeOptionLabel(pref: ThemePref): string {
+  for (const opt of THEME_OPTIONS) {
+    if (opt.value === pref) return opt.label;
+  }
+  return "Follow system";
+}
+
 export function parseThemePref(raw: string | null | undefined): ThemePref {
   if (raw === "light" || raw === "dark" || raw === "system") return raw;
   return "system";

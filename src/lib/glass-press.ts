@@ -12,6 +12,9 @@ export const GLASS_PRESS_SELECTOR = [
   ".fab-item",
   ".stepper button",
   ".cal-nav button",
+  ".theme-open",
+  ".theme-pick",
+  ".theme-x",
 ].join(", ");
 
 function pressTarget(ev: Event): HTMLElement | null {

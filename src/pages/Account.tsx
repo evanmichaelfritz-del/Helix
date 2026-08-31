@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ImportResult } from "@shared/types.ts";
-import { parseThemePref, THEME_OPTIONS } from "@shared/theme.ts";
+import { themeOptionLabel } from "@shared/theme.ts";
+import { ThemeOverlay } from "../components/ThemeOverlay.tsx";
 import { GROK_ME } from "../lib/grok.ts";
 import { ApiError, client } from "../lib/api.ts";
 import {
@@ -19,6 +20,7 @@ export function AccountPage() {
   const { user, setUser, bump } = useAppState();
   const [msg, setMsg] = useState<string | null>(null);
   const [imported, setImported] = useState<ImportResult | null>(null);
+  const [themeOpen, setThemeOpen] = useState(false);
   if (!user) return null;
   const s = user.settings;
 
@@ -79,16 +81,9 @@ export function AccountPage() {
             <strong>Theme</strong>
             <div className="muted">Follow system, light, or dark</div>
           </div>
-          <select
-            value={s.theme}
-            onChange={(e) => void patch({ theme: parseThemePref(e.target.value) }, true)}
-          >
-            {THEME_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <button type="button" className="theme-open" onClick={() => setThemeOpen(true)}>
+            {themeOptionLabel(s.theme)}
+          </button>
         </div>
         <div className="toggle">
           <div>
@@ -177,6 +172,17 @@ export function AccountPage() {
       >
         Log out
       </button>
+      {themeOpen ? (
+        <ThemeOverlay
+          theme={s.theme}
+          reduceEffects={s.reduceEffects}
+          onCancel={() => setThemeOpen(false)}
+          onSave={(theme) => {
+            setThemeOpen(false);
+            void patch({ theme }, true);
+          }}
+        />
+      ) : null}
     </>
   );
 }

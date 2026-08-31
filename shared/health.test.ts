@@ -9,7 +9,13 @@ import {
   todayHero,
   todaysWorkouts,
 } from "./health.js";
-import { HELIX_THEME_KEY, parseThemePref, THEME_OPTIONS } from "./theme.js";
+import {
+  HELIX_THEME_KEY,
+  parseThemePref,
+  THEME_CARDS,
+  THEME_OPTIONS,
+  themeOptionLabel,
+} from "./theme.js";
 
 describe("cn", () => {
   it("joins vial-runway and peptide-swatch classnames", () => {
@@ -98,5 +104,10 @@ describe("theme", () => {
     expect(HELIX_THEME_KEY).toBe("helix-theme");
     expect(parseThemePref(null)).toBe("system");
     expect(THEME_OPTIONS.map((o) => o.label)).toEqual(["Follow system", "Light", "Dark"]);
+  });
+
+  it("names overlay cards Dark Mode / Light Mode / System", () => {
+    expect(THEME_CARDS.map((o) => o.label)).toEqual(["Dark Mode", "Light Mode", "System"]);
+    expect(themeOptionLabel("dark")).toBe("Dark");
   });
 });
