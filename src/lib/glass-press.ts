@@ -15,7 +15,7 @@ export const GLASS_PRESS_SELECTOR = [
 ].join(", ");
 
 function pressTarget(ev: Event): HTMLElement | null {
-  if (ev instanceof PointerEvent && ev.button !== 0) return null;
+  if (ev instanceof MouseEvent && ev.button !== 0) return null;
   const raw = ev.target;
   if (!(raw instanceof Element)) return null;
   const hit = raw.closest(GLASS_PRESS_SELECTOR);
@@ -57,12 +57,28 @@ export function bindGlassPress(root: ParentNode = document): () => void {
     releaseTimer.set(el, id);
   }
 
+  function onClick(ev: Event): void {
+    const el = pressTarget(ev);
+    if (!el) return;
+    if (!el.classList.contains(GLASS_PRESS_CLASS)) {
+      el.classList.add(GLASS_PRESS_CLASS);
+      startedAt.set(el, Date.now());
+    }
+    onUp(ev);
+  }
+
   root.addEventListener("pointerdown", onDown);
+  root.addEventListener("mousedown", onDown);
   root.addEventListener("pointerup", onUp);
+  root.addEventListener("mouseup", onUp);
   root.addEventListener("pointercancel", onUp);
+  root.addEventListener("click", onClick);
   return () => {
     root.removeEventListener("pointerdown", onDown);
+    root.removeEventListener("mousedown", onDown);
     root.removeEventListener("pointerup", onUp);
+    root.removeEventListener("mouseup", onUp);
     root.removeEventListener("pointercancel", onUp);
+    root.removeEventListener("click", onClick);
   };
 }

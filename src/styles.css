@@ -456,7 +456,7 @@ html.reduce-effects {
 }
 .btn:hover { background: color-mix(in srgb, var(--primary) 88%, transparent); }
 .btn.ghost:hover { background: var(--glass-strong); }
-.btn:active, .btn.is-pressing { transform: scale(0.92); }
+.btn:active, .btn.is-pressing { transform: scale(0.9); }
 .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
 .row-btns { display: grid; gap: 8px; margin-top: 8px; }
 
@@ -524,7 +524,7 @@ html.reduce-effects {
   border-color: transparent;
 }
 .tabs button:active,
-.tabs button.is-pressing { transform: scale(0.94); }
+.tabs button.is-pressing { transform: scale(0.88); }
 
 .subnav {
   display: flex;
