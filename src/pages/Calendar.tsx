@@ -35,9 +35,6 @@ export function CalendarPage() {
   return (
     <>
       <h1>Calendar</h1>
-      <p className="muted" style={{ marginTop: -8, marginBottom: 16 }}>
-        Desktop rail only in v1. Mobile keeps four tabs.
-      </p>
       <div className="cal-nav">
         <button type="button" aria-label="Previous month" onClick={() => move(-1)}>
           ‹

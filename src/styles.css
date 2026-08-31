@@ -303,6 +303,11 @@ html.reduce-effects {
   padding: 6px 10px;
   border-radius: 14px;
 }
+.dock a {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 2px;
+}
 .dock a.active, .rail a.active { color: var(--text); background: var(--accent-dim); }
 .dock svg, .rail svg { width: 22px; height: 22px; }
 
