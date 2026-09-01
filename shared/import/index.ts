@@ -3,7 +3,7 @@ import { emptyRecords } from "./empty.js";
 import { parseGarmin } from "./garmin.js";
 import { parseHelixHelper } from "./helix.js";
 import type { ParseResult } from "./result.js";
-import { parseWhoop } from "./whoop.js";
+import { isWhoopZipCsv, parseWhoop, parseWhoopCsvFiles, whoopZipCsvRank } from "./whoop.js";
 
 export { emptyRecords };
 export type { ParseFail, ParseOk, ParseResult } from "./result.js";
@@ -70,10 +70,15 @@ export async function parseImportFile(file: {
       return parseGarmin(jsonFiles);
     }
 
-    const csv = entries.find((p) => /physiological|recovery|whoop/i.test(p) && p.endsWith(".csv"));
-    if (csv) {
-      const body = await zip.files[csv].async("string");
-      return parseWhoop(body);
+    const whoopCsvs = entries
+      .filter((p) => !zip.files[p].dir && isWhoopZipCsv(p))
+      .sort((a, b) => whoopZipCsvRank(a) - whoopZipCsvRank(b) || a.localeCompare(b));
+    if (whoopCsvs.length > 0) {
+      const files: { name: string; body: string }[] = [];
+      for (const path of whoopCsvs) {
+        files.push({ name: path, body: await zip.files[path].async("string") });
+      }
+      return parseWhoopCsvFiles(files);
     }
 
     return { kind: "error", error: "Could not find Whoop, Garmin JSON, Apple Health, or Helix helper data in that zip." };
