@@ -1129,13 +1129,13 @@ html:not(.light) .theme-mini-system {
   top: 6px;
   width: 1px;
   height: 10px;
-  background: color-mix(in srgb, var(--text) 38%, transparent);
+  background: color-mix(in srgb, var(--text) 62%, transparent);
   transform: translateX(-50%);
 }
 .calc-syringe-line.major {
-  top: 3px;
-  height: 16px;
-  background: color-mix(in srgb, var(--text) 58%, transparent);
+  top: 2px;
+  height: 18px;
+  background: color-mix(in srgb, var(--text) 82%, transparent);
 }
 .calc-syringe-mark {
   position: absolute;
