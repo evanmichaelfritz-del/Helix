@@ -375,6 +375,7 @@ describe("import records batch", () => {
     expect(globSync("api/**/*.{ts,js}").filter((f) => !f.includes("/_"))).toEqual(["api/index.ts"]);
     expect(readFileSync("api/index.ts", "utf8")).toMatch(/maxDuration:\s*10/);
     expect(readFileSync("vercel.json", "utf8")).toMatch(/"maxDuration":\s*10/);
+    expect(readFileSync("vercel.json", "utf8")).toMatch(/destination": "\/index.html"/);
   });
 
   it("qualifies the active-dose predicate when an alias is in scope", () => {
