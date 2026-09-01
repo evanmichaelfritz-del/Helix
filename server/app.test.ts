@@ -776,6 +776,11 @@ describe("design scaffold locks", () => {
     expect(sheet).not.toMatch(/blur\(/);
     expect(css).toMatch(/\.sheet \.btn,[\s\S]*?background: var\(--primary\)/);
     expect(css).toMatch(/\.sheet \.btn,[\s\S]*?backdrop-filter: none/);
+    expect(css).toMatch(/\.subnav a \{[\s\S]*?min-height: 44px/);
+    expect(css).toMatch(/\.toggle \.theme-open \{[\s\S]*?min-height: 44px/);
+    expect(css).toMatch(/\.toggle button \{[\s\S]*?height: 44px[\s\S]*?min-height: 44px/);
+    expect(css).toMatch(/\.fab \{[\s\S]*?min-height: 44px/);
+    expect(css).toMatch(/\.fab-item \{[\s\S]*?min-height: 44px/);
   });
 
   it("keeps a designed boot screen on first paint and while session is pending", () => {
