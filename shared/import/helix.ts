@@ -1,6 +1,7 @@
 import { HELIX_EXPORT_KIND, type PeptideUnit } from "../types.js";
 import { emptyRecords } from "./empty.js";
 import type { ParseResult } from "./result.js";
+import { isWhoopZipCsv } from "./whoop.js";
 
 export function parseHelixHelper(text: string): ParseResult {
   let raw: unknown;
@@ -31,6 +32,72 @@ export function parseHelixHelper(text: string): ParseResult {
   records.healthDays = asArray(obj.healthDays).map(readHealthDay).filter((x) => x !== undefined);
   records.workouts = asArray(obj.workouts).map(readWorkout).filter((x) => x !== undefined);
   return { kind: "ok", records };
+}
+
+/** You helper picker: bare helper JSON, or a zip that unwraps to one. Not Whoop/Garmin/Apple. */
+export async function parseHelixHelperFile(file: {
+  name: string;
+  type: string;
+  buffer: ArrayBuffer;
+}): Promise<ParseResult> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".json")) {
+    return parseHelixHelper(new TextDecoder("utf-8").decode(file.buffer));
+  }
+  if (name.endsWith(".zip")) {
+    return unwrapHelperZip(file.buffer);
+  }
+  return { kind: "error", error: "Drop a Helix helper JSON, or a zip that contains one." };
+}
+
+async function unwrapHelperZip(buffer: ArrayBuffer): Promise<ParseResult> {
+  const { default: JSZip } = await import("jszip");
+  let zip;
+  try {
+    zip = await JSZip.loadAsync(buffer);
+  } catch {
+    return { kind: "error", error: "That zip could not be opened." };
+  }
+
+  const paths = Object.keys(zip.files).filter((path) => !zip.files[path].dir && !isIgnoredZipPath(path));
+  const jsonPaths = paths.filter((path) => path.toLowerCase().endsWith(".json")).sort((a, b) => a.localeCompare(b));
+
+  const helpers: string[] = [];
+  for (const path of jsonPaths) {
+    const body = await zip.files[path].async("string");
+    if (hasHelperKind(body)) helpers.push(body);
+  }
+  if (helpers.length > 0) {
+    return parseHelixHelper(helpers[0]);
+  }
+
+  if (paths.some((path) => isWhoopZipCsv(path))) {
+    return {
+      kind: "error",
+      error: "That zip is a Whoop export. Drop it on Vitals, not You.",
+    };
+  }
+
+  return {
+    kind: "error",
+    error: "That zip does not contain a Helix helper JSON (kind helix-helper-json).",
+  };
+}
+
+function hasHelperKind(text: string): boolean {
+  try {
+    const raw = JSON.parse(text) as { kind?: unknown };
+    return raw?.kind === HELIX_EXPORT_KIND || raw?.kind === "helix-export";
+  } catch {
+    return false;
+  }
+}
+
+function isIgnoredZipPath(path: string): boolean {
+  const normalized = path.replace(/\\/g, "/");
+  if (normalized.startsWith("__MACOSX/") || normalized.includes("/__MACOSX/")) return true;
+  const base = normalized.slice(normalized.lastIndexOf("/") + 1);
+  return base.startsWith(".") || base.startsWith("._");
 }
 
 function asArray(value: unknown): Record<string, unknown>[] {

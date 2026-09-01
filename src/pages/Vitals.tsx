@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useLocation } from "react-router-dom";
 import type { ImportResult, WeighIn, WeightUnit } from "@shared/types.ts";
-import { parseImportFile } from "@shared/import/index.ts";
+import { parseImportFile, type ParseResult } from "@shared/import/index.ts";
 import { LIVELINE_H, LIVELINE_W, livelineIndexAt, livelinePoints, livelineViewX } from "@shared/liveline.ts";
 import { ApiError, client } from "../lib/api.ts";
 import { formatWeight, hoursLabel, shortDate, signedDelta } from "../lib/format.ts";
@@ -282,6 +282,7 @@ export function FilePicker(props: {
   label: string;
   hint: string;
   accept: string;
+  parseFile?: (file: { name: string; type: string; buffer: ArrayBuffer }) => Promise<ParseResult>;
   onImported: (result: ImportResult | null, message: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -289,7 +290,7 @@ export function FilePicker(props: {
     setBusy(true);
     try {
       const buffer = await file.arrayBuffer();
-      const parsed = await parseImportFile({ name: file.name, type: file.type, buffer });
+      const parsed = await (props.parseFile ?? parseImportFile)({ name: file.name, type: file.type, buffer });
       if (parsed.kind === "error") {
         props.onImported(null, parsed.error);
         return;

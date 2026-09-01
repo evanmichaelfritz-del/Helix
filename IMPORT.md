@@ -6,7 +6,7 @@ Do not paste tokens. Same-email accounts on grok.me are not migrated silently. T
 
 ## grok.me helper JSON
 
-You → Continue on grok.me opens https://helix-peptides.grok.me in a new tab. If the same-origin helper is not live, export or build a helper JSON and drop it on You or Vitals.
+You → Continue on grok.me opens https://helix-peptides.grok.me in a new tab. If the same-origin helper is not live, export or build a helper JSON and drop that file — or a zip that contains it — on You. Wearable zips (Whoop, Garmin, Apple Health) stay on Vitals.
 
 ```json
 {
