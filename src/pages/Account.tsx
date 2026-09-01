@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { parseHelixHelperFile } from "@shared/import/helix.ts";
 import type { ImportResult } from "@shared/types.ts";
 import { themeOptionLabel } from "@shared/theme.ts";
 import { ThemeOverlay } from "../components/ThemeOverlay.tsx";
@@ -137,8 +138,9 @@ export function AccountPage() {
         </p>
         <article className="card" style={{ padding: 18 }}>
           <p className="muted">
-            Continue on grok.me, then drop the helper JSON here. Wearable files go on Vitals.
-            Helix never fetches helix-peptides.grok.me RPCs and does not migrate by email.
+            Continue on grok.me, then drop the helper JSON or a zip that contains it. Wearable
+            files go on Vitals. Helix never fetches helix-peptides.grok.me RPCs and does not
+            migrate by email.
           </p>
           <a className="btn" style={{ marginTop: 14 }} href={GROK_ME} target="_blank" rel="noreferrer">
             Continue on grok.me
@@ -146,8 +148,9 @@ export function AccountPage() {
           <div style={{ marginTop: 12 }}>
             <FilePicker
               label="Helix helper JSON"
-              hint="Drop the grok.me helper JSON. Token paste is rejected."
+              hint="Drop the grok.me helper JSON, or a zip that contains one. Token paste is rejected."
               accept=".json,.zip"
+              parseFile={parseHelixHelperFile}
               onImported={(result, text) => {
                 setImported(result);
                 setMsg(text);

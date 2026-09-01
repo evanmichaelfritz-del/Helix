@@ -1,11 +1,11 @@
 import { parseAppleHealth } from "./apple.js";
 import { emptyRecords } from "./empty.js";
 import { parseGarmin } from "./garmin.js";
-import { parseHelixHelper } from "./helix.js";
+import { parseHelixHelper, parseHelixHelperFile } from "./helix.js";
 import type { ParseResult } from "./result.js";
 import { isWhoopZipCsv, parseWhoop, parseWhoopCsvFiles, whoopZipCsvRank } from "./whoop.js";
 
-export { emptyRecords };
+export { emptyRecords, parseHelixHelper, parseHelixHelperFile };
 export type { ParseFail, ParseOk, ParseResult } from "./result.js";
 
 export async function parseImportFile(file: {
