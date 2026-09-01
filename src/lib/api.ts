@@ -82,6 +82,7 @@ export const client = {
       schedule?: import("@shared/types.ts").PeptideSchedule;
     },
   ) => api<{ peptide: import("@shared/types.ts").Peptide }>(`/api/peptides/${id}`, { method: "PATCH", json: body }),
+  deletePeptide: (id: string) => api<{ ok: true }>(`/api/peptides/${id}`, { method: "DELETE" }),
   vials: () =>
     api<{
       vials: Array<

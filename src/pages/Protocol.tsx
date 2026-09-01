@@ -47,10 +47,16 @@ export function PeptidesPage() {
   );
 }
 
+function remainingLine(vial: { label: string | null; remainingInjections: number }): string {
+  const left = `${vial.remainingInjections} remaining`;
+  return vial.label ? `${vial.label} · ${left}` : left;
+}
+
 export function VialsPage() {
-  const { openSheet, peptides, vials, setPeptides } = useAppState();
+  const { openSheet, peptides, vials, setPeptides, setVials, bump } = useAppState();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const rows = peptides
     .map((peptide) => {
@@ -70,6 +76,20 @@ export function VialsPage() {
     }
   }
 
+  async function removePeptide(id: string) {
+    setSaving(id);
+    try {
+      await client.deletePeptide(id);
+      setPeptides(peptides.filter((p) => p.id !== id));
+      setVials(vials.filter((v) => v.peptideId !== id));
+      setExpanded(null);
+      setConfirmDelete(null);
+      bump();
+    } finally {
+      setSaving(null);
+    }
+  }
+
   return (
     <>
       <div className="list">
@@ -82,7 +102,7 @@ export function VialsPage() {
                 <div className="meta" style={{ flex: 1, minWidth: 0 }}>
                   <strong>{peptide.name}</strong>
                   <div className="muted">{scheduleSummary(peptide.schedule)}</div>
-                  <div className="muted">{vial.label || `${vial.remainingAmount} remaining`}</div>
+                  <div className="muted">{remainingLine(vial)}</div>
                 </div>
                 <VialRunway remaining={vial.remainingInjections} tone={vial.runwayTone} />
                 <button
@@ -90,7 +110,10 @@ export function VialsPage() {
                   className="expand-btn"
                   aria-expanded={open}
                   aria-label={`${open ? "Hide" : "Show"} schedule for ${peptide.name}`}
-                  onClick={() => setExpanded(open ? null : peptide.id)}
+                  onClick={() => {
+                    setExpanded(open ? null : peptide.id);
+                    setConfirmDelete(null);
+                  }}
                 >
                   <ChevronDown open={open} />
                 </button>
@@ -102,6 +125,27 @@ export function VialsPage() {
                     disabled={saving === peptide.id}
                     onChange={(schedule) => void saveSchedule(peptide, schedule)}
                   />
+                  {confirmDelete === peptide.id ? (
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ marginTop: 14 }}
+                      disabled={saving === peptide.id}
+                      onClick={() => void removePeptide(peptide.id)}
+                    >
+                      Delete {peptide.name}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      style={{ marginTop: 14 }}
+                      disabled={saving === peptide.id}
+                      onClick={() => setConfirmDelete(peptide.id)}
+                    >
+                      Delete peptide
+                    </button>
+                  )}
                 </div>
               ) : null}
             </div>
