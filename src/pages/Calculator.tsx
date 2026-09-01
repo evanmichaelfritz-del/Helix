@@ -15,6 +15,7 @@ import {
   parsePositive,
   SYRINGE_UNITS,
   syringeTicks,
+  syringeUnitMarks,
   WATER_UNITS,
   waterToMl,
   type DoseUnit,
@@ -315,12 +316,22 @@ function ReverseCalc() {
 
 function SyringeTrack(props: { syringe: SyringeUnits; units: number }) {
   const ticks = syringeTicks(props.syringe);
+  const marks = syringeUnitMarks(props.syringe);
   const clamped = Math.min(Math.max(props.units, 0), props.syringe);
   const fill = `${(clamped / props.syringe) * 100}%`;
   return (
     <div className="calc-syringe" aria-hidden="true">
       <div className="calc-syringe-bar">
         <i className="calc-syringe-fill" style={{ width: fill }} />
+        <div className="calc-syringe-hashes">
+          {marks.map((n) => (
+            <i
+              key={n}
+              className={cn("calc-syringe-line", n % 10 === 0 && "major")}
+              style={{ left: `${(n / props.syringe) * 100}%` }}
+            />
+          ))}
+        </div>
         <i className="calc-syringe-mark" style={{ left: fill }} />
       </div>
       <div className="calc-syringe-ticks">

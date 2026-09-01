@@ -716,6 +716,8 @@ describe("design scaffold locks", () => {
     expect(calc).toMatch(/formulateDraw/);
     expect(calc).toMatch(/formulateReverse/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe-line/);
+    expect(readFileSync("src/pages/Calculator.tsx", "utf8")).toMatch(/syringeUnitMarks/);
     expect(readFileSync("shared/peptide-calc.ts", "utf8")).toMatch(/UNITS_PER_ML = 100/);
   });
 });

@@ -6,6 +6,7 @@ import {
   formulateDraw,
   formulateReverse,
   syringeTicks,
+  syringeUnitMarks,
   vialAmountToMg,
 } from "./peptide-calc.js";
 
@@ -132,5 +133,13 @@ describe("display helpers", () => {
     expect(syringeTicks(30)).toEqual([0, 5, 10, 15, 20, 25, 30]);
     expect(syringeTicks(100)[0]).toBe(0);
     expect(syringeTicks(100).at(-1)).toBe(100);
+  });
+
+  it("marks every two units on the barrel", () => {
+    expect(syringeUnitMarks(30)).toEqual([
+      0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
+    ]);
+    expect(syringeUnitMarks(50)).toHaveLength(26);
+    expect(syringeUnitMarks(100).at(-1)).toBe(100);
   });
 });
