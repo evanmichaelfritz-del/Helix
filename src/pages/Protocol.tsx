@@ -6,7 +6,7 @@ import { client } from "../lib/api.ts";
 import { useAppState } from "../lib/state.tsx";
 import { PeptideSwatch, VialRunway } from "../components/Shell.tsx";
 import { ChevronDown, PeptideScheduleEditor } from "../components/PeptideScheduleEditor.tsx";
-import { SkeletonCards, useDelayedFlag } from "../components/Skeleton.tsx";
+import { SkeletonCards } from "../components/Skeleton.tsx";
 
 export function ProtocolLayout() {
   return (
@@ -28,8 +28,6 @@ export function PeptidesPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const showSkeleton = useDelayedFlag(!appDataReady);
-
   async function removePeptide(peptide: Peptide) {
     setSaving(peptide.id);
     try {
@@ -45,9 +43,7 @@ export function PeptidesPage() {
     }
   }
 
-  if (!appDataReady) {
-    return showSkeleton ? <SkeletonCards /> : null;
-  }
+  if (!appDataReady) return <SkeletonCards />;
 
   return (
     <>
@@ -141,8 +137,6 @@ export function VialsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const showSkeleton = useDelayedFlag(!appDataReady);
-
   const rows = peptides
     .map((peptide) => {
       const vial = vials.find((v) => v.peptideId === peptide.id);
@@ -151,9 +145,7 @@ export function VialsPage() {
     })
     .filter((row): row is { peptide: Peptide; vial: (typeof vials)[number] } => row != null);
 
-  if (!appDataReady) {
-    return showSkeleton ? <SkeletonCards /> : null;
-  }
+  if (!appDataReady) return <SkeletonCards />;
 
   async function saveSchedule(peptide: Peptide, schedule: Peptide["schedule"]) {
     setSaving(peptide.id);
@@ -249,8 +241,7 @@ export function VialsPage() {
 
 export function DoseLogPage() {
   const { peptides, doses, appDataReady } = useAppState();
-  const showSkeleton = useDelayedFlag(!appDataReady);
-  if (!appDataReady) return showSkeleton ? <SkeletonCards /> : null;
+  if (!appDataReady) return <SkeletonCards />;
   return (
     <div className="list">
       {doses.length === 0 ? <p className="muted">No doses yet.</p> : null}

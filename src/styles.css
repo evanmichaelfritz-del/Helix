@@ -100,6 +100,23 @@ html.reduce-effects {
 .reduce-effects .card {
   background: var(--solid);
 }
+html.no-backdrop {
+  --bg-elevated: #1c1c1e;
+}
+html.light.no-backdrop {
+  --bg-elevated: #ffffff;
+}
+html.no-backdrop .chrome {
+  background: var(--solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html.no-backdrop .fab,
+html.no-backdrop .fab-item {
+  background: var(--primary);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 .reduce-effects * {
   transition: none !important;
   animation: none !important;
@@ -155,6 +172,10 @@ html.reduce-effects {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
+}
+.account-logout {
+  margin-top: 24px;
+  margin-bottom: env(safe-area-inset-bottom);
 }
 
 .kicker {
@@ -399,14 +420,17 @@ html.reduce-effects {
 .sheet {
   width: min(480px, 100%);
   border-radius: 24px 24px 0 0;
-  padding: 10px 20px 28px;
+  padding: 10px 20px calc(28px + var(--dock-h));
   max-height: 88dvh;
   background: var(--solid);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 @media (min-width: 860px) {
-  .sheet { border-radius: 24px; }
+  .sheet {
+    border-radius: 24px;
+    padding: 10px 20px calc(28px + env(safe-area-inset-bottom));
+  }
 }
 .sheet h2 { margin: 8px 0 16px; font-size: 18px; }
 .handle {
@@ -505,6 +529,18 @@ html.reduce-effects {
 }
 .sheet .btn.ghost,
 .sheet .btn.ghost:hover {
+  background: var(--solid-2);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.theme-overlay .btn,
+.theme-overlay .btn:hover {
+  background: var(--primary);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.theme-overlay .btn.ghost,
+.theme-overlay .btn.ghost:hover {
   background: var(--solid-2);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -1046,8 +1082,10 @@ html:not(.light) .theme-mini-system {
   font-weight: 600;
 }
 .cal-nav button {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--glass-edge) 30%, var(--line));
   background: var(--glass);
@@ -1080,6 +1118,8 @@ html:not(.light) .theme-mini-system {
   justify-content: center;
   gap: 5px;
   padding: 4px 2px 6px;
+  min-width: 44px;
+  min-height: 44px;
 }
 .cal button.today {
   font-weight: 600;
@@ -1134,7 +1174,6 @@ html:not(.light) .theme-mini-system {
 .calc-row select {
   flex: 0 0 auto;
   width: max-content;
-  min-width: 5.5rem;
   max-width: none;
 }
 .calc-row > .muted { flex: 0 0 auto; }

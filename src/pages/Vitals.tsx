@@ -8,7 +8,7 @@ import { LIVELINE_H, LIVELINE_W, livelineIndexAt, livelinePoints, livelineViewX 
 import { ApiError, client } from "../lib/api.ts";
 import { formatWeight, hoursLabel, shortDate, signedDelta } from "../lib/format.ts";
 import { useAppState } from "../lib/state.tsx";
-import { SkeletonCards, useDelayedFlag } from "../components/Skeleton.tsx";
+import { SkeletonCards } from "../components/Skeleton.tsx";
 
 export function VitalsPage() {
   const { bump, user, setUser, healthDays, healthWeighIns, healthWorkouts, appDataReady } = useAppState();
@@ -16,7 +16,7 @@ export function VitalsPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [imported, setImported] = useState<ImportResult | null>(null);
   const unit = user?.settings.weightUnit ?? "lb";
-  const showSkeleton = useDelayedFlag(!appDataReady);
+  const showSkeleton = !appDataReady;
 
   useEffect(() => {
     if (location.hash !== "#sources") return;

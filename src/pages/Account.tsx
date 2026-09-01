@@ -20,6 +20,7 @@ import { FilePicker, ImportedCounts } from "./Vitals.tsx";
 export function AccountPage() {
   const { user, setUser, bump } = useAppState();
   const [msg, setMsg] = useState<string | null>(null);
+  const [faceMsg, setFaceMsg] = useState<string | null>(null);
   const [imported, setImported] = useState<ImportResult | null>(null);
   const [themeOpen, setThemeOpen] = useState(false);
   if (!user) return null;
@@ -39,19 +40,22 @@ export function AccountPage() {
     } catch (err: unknown) {
       applyChrome(s);
       setUser(account);
-      setMsg(err instanceof ApiError ? err.message : "Could not save settings.");
+      const text = err instanceof ApiError ? err.message : "Could not save settings.";
+      if ("faceId" in partial) setFaceMsg(text);
+      else setMsg(text);
     }
   }
 
   const account = user;
   async function toggleFaceId() {
+    setFaceMsg(null);
     if (s.faceId) {
       clearFaceId(account.id);
       await patch({ faceId: false });
       return;
     }
     if (!faceIdAvailable()) {
-      setMsg("Face ID is not available on this device.");
+      setFaceMsg("Not available on this device.");
       return;
     }
     try {
@@ -61,12 +65,12 @@ export function AccountPage() {
         displayName: account.displayName,
       });
       if (!ok) {
-        setMsg("Could not enable Face ID.");
+        setFaceMsg("Could not enable Face ID.");
         return;
       }
       await patch({ faceId: true });
     } catch {
-      setMsg("Face ID was cancelled.");
+      setFaceMsg("Not available on this device.");
     }
   }
 
@@ -87,21 +91,24 @@ export function AccountPage() {
           </button>
         </div>
         {isIPhoneOrIPad() ? (
-          <div className="toggle">
-            <div>
-              <strong>Face ID</strong>
-              <div className="muted">
-                {faceIdAvailable()
-                  ? storedCredentialId(user.id)
-                    ? "Unlock this device with Face ID"
-                    : "Register this device"
-                  : "Not available on this device"}
+          <>
+            <div className="toggle">
+              <div>
+                <strong>Face ID</strong>
+                <div className="muted">
+                  {faceIdAvailable()
+                    ? storedCredentialId(user.id)
+                      ? "Unlock this device with Face ID"
+                      : "Register this device"
+                    : "Not available on this device"}
+                </div>
               </div>
+              <button type="button" className={s.faceId ? "on" : undefined} onClick={() => void toggleFaceId()} aria-pressed={s.faceId}>
+                <i />
+              </button>
             </div>
-            <button type="button" className={s.faceId ? "on" : undefined} onClick={() => void toggleFaceId()} aria-pressed={s.faceId}>
-              <i />
-            </button>
-          </div>
+            {faceMsg ? <p className="muted face-id-msg">{faceMsg}</p> : null}
+          </>
         ) : null}
         <div className="toggle">
           <div>
@@ -161,8 +168,7 @@ export function AccountPage() {
       </section>
 
       <button
-        className="btn ghost"
-        style={{ marginTop: 24 }}
+        className="btn ghost account-logout"
         type="button"
         onClick={() => {
           void client.logout().then(() => {

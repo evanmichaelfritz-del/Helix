@@ -4,11 +4,13 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
 import { App } from "./App.tsx";
+import { syncBackdropChrome } from "./lib/chrome.ts";
 import { bindGlassPress } from "./lib/glass-press.ts";
 import { bindHaptics } from "./lib/haptics.ts";
 import "./styles.css";
 
 registerSW({ immediate: true });
+syncBackdropChrome();
 bindGlassPress();
 bindHaptics();
 

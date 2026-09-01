@@ -29,6 +29,34 @@ export function persistHelixTheme(theme: ThemePref): void {
   localStorage.setItem(HELIX_THEME_KEY, theme);
 }
 
+function computedBackdropFilter(el: Element): string {
+  const cs = getComputedStyle(el);
+  const value = cs.backdropFilter || cs.getPropertyValue("backdrop-filter");
+  const webkit = cs.getPropertyValue("-webkit-backdrop-filter");
+  return (value || webkit || "").trim();
+}
+
+export function backdropFilterComputes(): boolean {
+  const probe = document.createElement("div");
+  probe.className = "chrome";
+  probe.setAttribute("aria-hidden", "true");
+  probe.style.cssText =
+    "position:fixed;left:0;top:0;width:8px;height:8px;pointer-events:none;z-index:-1;";
+  document.documentElement.appendChild(probe);
+  const filter = computedBackdropFilter(probe);
+  probe.remove();
+  return Boolean(filter) && filter !== "none";
+}
+
+export function syncBackdropChrome(): void {
+  const root = document.documentElement;
+  if (root.classList.contains("reduce-effects")) {
+    root.classList.remove("no-backdrop");
+    return;
+  }
+  root.classList.toggle("no-backdrop", !backdropFilterComputes());
+}
+
 export function applyChrome(opts: { theme: ThemePref; reduceEffects: boolean }): void {
   const root = document.documentElement;
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -36,6 +64,7 @@ export function applyChrome(opts: { theme: ThemePref; reduceEffects: boolean }):
   root.classList.toggle("light", !dark);
   root.classList.toggle("reduce-effects", opts.reduceEffects);
   delete root.dataset.theme;
+  syncBackdropChrome();
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", themeColor(dark));
 }
