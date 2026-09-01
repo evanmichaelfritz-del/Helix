@@ -43,9 +43,6 @@ export function ThemeOverlay(props: {
       >
         <header className="theme-overlay-head">
           <h2 id={titleId}>Display Settings</h2>
-          <button type="button" className="theme-x" aria-label="Close" onClick={revert}>
-            ×
-          </button>
         </header>
         <p className="theme-overlay-kicker">Color Mode</p>
         <p className="muted">Choose your interface style</p>
@@ -62,7 +59,7 @@ export function ThemeOverlay(props: {
                 onClick={() => setDraft(card.value)}
               >
                 <ThemeMini pref={card.value} />
-                <span className="theme-pick-label">{on ? card.label : ""}</span>
+                <span className="theme-pick-label">{card.label}</span>
               </button>
             );
           })}

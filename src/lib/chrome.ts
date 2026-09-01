@@ -73,6 +73,10 @@ export function storedCredentialId(userId: string): string | null {
   return localStorage.getItem(KEY(userId));
 }
 
+export function isIPhoneOrIPad(): boolean {
+  return typeof navigator !== "undefined" && /iPhone|iPad/i.test(navigator.userAgent);
+}
+
 export function faceIdAvailable(): boolean {
   return typeof window !== "undefined" && typeof window.PublicKeyCredential === "function";
 }

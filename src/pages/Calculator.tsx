@@ -130,7 +130,7 @@ function DrawCalc() {
         <span>Peptide in the vial</span>
         {rows.map((row, i) => (
           <div className="calc-row" key={row.key}>
-            <span className="muted">{rows.length > 1 ? `Peptide ${i + 1}` : "mg"}</span>
+            {rows.length > 1 ? <span className="muted">{`Peptide ${i + 1}`}</span> : null}
             <input
               inputMode="decimal"
               value={row.mg}
@@ -186,7 +186,7 @@ function DrawCalc() {
         <span>Dose</span>
         {rows.map((row, i) => (
           <div className="calc-row" key={`d-${row.key}`}>
-            <span className="muted">{rows.length > 1 ? `Peptide ${i + 1}` : doseUnit}</span>
+            {rows.length > 1 ? <span className="muted">{`Peptide ${i + 1}`}</span> : null}
             <input
               inputMode="decimal"
               value={row.dose}

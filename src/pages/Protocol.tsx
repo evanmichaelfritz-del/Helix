@@ -6,6 +6,7 @@ import { client } from "../lib/api.ts";
 import { useAppState } from "../lib/state.tsx";
 import { PeptideSwatch, VialRunway } from "../components/Shell.tsx";
 import { ChevronDown, PeptideScheduleEditor } from "../components/PeptideScheduleEditor.tsx";
+import { SkeletonCards, useDelayedFlag } from "../components/Skeleton.tsx";
 
 export function ProtocolLayout() {
   return (
@@ -23,22 +24,105 @@ export function ProtocolLayout() {
 }
 
 export function PeptidesPage() {
-  const { openSheet, peptides } = useAppState();
+  const { openSheet, peptides, setPeptides, setVials, setDoses, vials, doses, bump, appDataReady } = useAppState();
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const showSkeleton = useDelayedFlag(!appDataReady);
+
+  async function removePeptide(peptide: Peptide) {
+    setSaving(peptide.id);
+    try {
+      await client.deletePeptide(peptide.id);
+      setPeptides(peptides.filter((p) => p.id !== peptide.id));
+      setVials(vials.filter((v) => v.peptideId !== peptide.id));
+      setDoses(doses.filter((d) => d.peptideId !== peptide.id));
+      setExpanded(null);
+      setConfirmDelete(null);
+      bump();
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  if (!appDataReady) {
+    return showSkeleton ? <SkeletonCards /> : null;
+  }
+
   return (
     <>
       <div className="list">
-        {peptides.map((p: Peptide) => (
-          <div className="card list-row" key={p.id}>
-            <PeptideSwatch color={p.color} />
-            <div className="meta">
-              <strong>{p.name}</strong>
-              <div className="muted">
-                {p.unit}
-                {p.lastAmount != null ? ` · last ${p.lastAmount}` : ""}
+        {peptides.map((p: Peptide) => {
+          const open = expanded === p.id;
+          const body = p.bodyEffect?.trim() || "";
+          const notice = p.expectedResults?.trim() || "";
+          const hasCopy = Boolean(body || notice);
+          return (
+            <div className="card vial-schedule-row" key={p.id}>
+              <div className="list-row">
+                <PeptideSwatch color={p.color} />
+                <div className="meta" style={{ flex: 1, minWidth: 0 }}>
+                  <strong>{p.name}</strong>
+                  <div className="muted">
+                    {p.unit}
+                    {p.lastAmount != null ? ` · last ${p.lastAmount}` : ""}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="expand-btn"
+                  aria-expanded={open}
+                  aria-label={`${open ? "Hide" : "Show"} details for ${p.name}`}
+                  onClick={() => {
+                    setExpanded(open ? null : p.id);
+                    setConfirmDelete(null);
+                  }}
+                >
+                  <ChevronDown open={open} />
+                </button>
               </div>
+              {open ? (
+                <div className="schedule-panel">
+                  <div className="schedule-editor">
+                    <div className="schedule-block">
+                      <span className="schedule-label">What it does</span>
+                      <p className={body ? undefined : "muted"}>{body || "No description yet."}</p>
+                    </div>
+                    <div className="schedule-block">
+                      <span className="schedule-label">What you may notice.</span>
+                      <p className={notice ? undefined : "muted"}>{notice || "No description yet."}</p>
+                    </div>
+                    {hasCopy ? <p className="muted">Educational summary — not medical advice.</p> : null}
+                  </div>
+                  <p className="muted" style={{ marginTop: 14 }}>
+                    This removes {p.name}, its vials, and its dose history.
+                  </p>
+                  {confirmDelete === p.id ? (
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ marginTop: 14 }}
+                      disabled={saving === p.id}
+                      onClick={() => void removePeptide(p)}
+                    >
+                      Delete this peptide
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      style={{ marginTop: 14 }}
+                      disabled={saving === p.id}
+                      onClick={() => setConfirmDelete(p.id)}
+                    >
+                      Delete peptide
+                    </button>
+                  )}
+                </div>
+              ) : null}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <button className="btn" style={{ marginTop: 16 }} type="button" onClick={() => openSheet({ kind: "add-peptide" })}>
         Add a peptide
@@ -53,10 +137,11 @@ function remainingLine(vial: { label: string | null; remainingInjections: number
 }
 
 export function VialsPage() {
-  const { openSheet, peptides, vials, setPeptides, setVials, bump } = useAppState();
+  const { openSheet, peptides, vials, setPeptides, setVials, bump, appDataReady } = useAppState();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const showSkeleton = useDelayedFlag(!appDataReady);
 
   const rows = peptides
     .map((peptide) => {
@@ -65,6 +150,10 @@ export function VialsPage() {
       return { peptide, vial };
     })
     .filter((row): row is { peptide: Peptide; vial: (typeof vials)[number] } => row != null);
+
+  if (!appDataReady) {
+    return showSkeleton ? <SkeletonCards /> : null;
+  }
 
   async function saveSchedule(peptide: Peptide, schedule: Peptide["schedule"]) {
     setSaving(peptide.id);
@@ -159,7 +248,9 @@ export function VialsPage() {
 }
 
 export function DoseLogPage() {
-  const { peptides, doses } = useAppState();
+  const { peptides, doses, appDataReady } = useAppState();
+  const showSkeleton = useDelayedFlag(!appDataReady);
+  if (!appDataReady) return showSkeleton ? <SkeletonCards /> : null;
   return (
     <div className="list">
       {doses.length === 0 ? <p className="muted">No doses yet.</p> : null}

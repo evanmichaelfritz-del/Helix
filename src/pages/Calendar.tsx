@@ -5,12 +5,14 @@ import { dayHeading } from "../lib/format.ts";
 import { cn } from "@shared/cn.ts";
 import { useAppState } from "../lib/state.tsx";
 import { PeptideSwatch } from "../components/Shell.tsx";
+import { SkeletonCards, useDelayedFlag } from "../components/Skeleton.tsx";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const MAX_DOTS = 4;
 
 export function CalendarPage() {
-  const { peptides, doses } = useAppState();
+  const { peptides, doses, appDataReady } = useAppState();
+  const showSkeleton = useDelayedFlag(!appDataReady);
   const today = todayLocal();
   const [y, m] = today.split("-").map(Number);
   const [cursor, setCursor] = useState({ year: y, month: m });
@@ -30,6 +32,15 @@ export function CalendarPage() {
       const [oy, om] = openOn.split("-").map(Number);
       if (oy !== next.year || om !== next.month) setOpenOn(null);
     }
+  }
+
+  if (!appDataReady) {
+    return (
+      <>
+        <h1>Calendar</h1>
+        {showSkeleton ? <SkeletonCards /> : null}
+      </>
+    );
   }
 
   return (

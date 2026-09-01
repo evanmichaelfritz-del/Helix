@@ -8,6 +8,7 @@ import {
   applyChrome,
   clearFaceId,
   faceIdAvailable,
+  isIPhoneOrIPad,
   persistHelixTheme,
   registerFaceId,
   storedCredentialId,
@@ -85,21 +86,23 @@ export function AccountPage() {
             {themeOptionLabel(s.theme)}
           </button>
         </div>
-        <div className="toggle">
-          <div>
-            <strong>Face ID</strong>
-            <div className="muted">
-              {faceIdAvailable()
-                ? storedCredentialId(user.id)
-                  ? "Unlock this device with Face ID"
-                  : "Register this device"
-                : "Not available on this device"}
+        {isIPhoneOrIPad() ? (
+          <div className="toggle">
+            <div>
+              <strong>Face ID</strong>
+              <div className="muted">
+                {faceIdAvailable()
+                  ? storedCredentialId(user.id)
+                    ? "Unlock this device with Face ID"
+                    : "Register this device"
+                  : "Not available on this device"}
+              </div>
             </div>
+            <button type="button" className={s.faceId ? "on" : undefined} onClick={() => void toggleFaceId()} aria-pressed={s.faceId}>
+              <i />
+            </button>
           </div>
-          <button type="button" className={s.faceId ? "on" : undefined} onClick={() => void toggleFaceId()} aria-pressed={s.faceId}>
-            <i />
-          </button>
-        </div>
+        ) : null}
         <div className="toggle">
           <div>
             <strong>Reduce effects</strong>
@@ -122,8 +125,8 @@ export function AccountPage() {
             value={s.weightUnit}
             onChange={(e) => void patch({ weightUnit: e.target.value as typeof s.weightUnit })}
           >
-            <option value="kg">kg</option>
             <option value="lb">lb</option>
+            <option value="kg">kg</option>
           </select>
         </div>
       </article>

@@ -2,13 +2,23 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { stepperDelta } from "@shared/health.ts";
 import { doseSheetMode } from "@shared/dose-sheet.ts";
+import { SYRINGE_UNITS, type SyringeUnits } from "@shared/peptide-calc.ts";
 import { PEPTIDE_UNITS, todayLocal, type Dose, type Peptide, type PeptideUnit } from "@shared/types.ts";
+import { cn } from "@shared/cn.ts";
 import { kgFromInput } from "../lib/format.ts";
 import { ApiError, client } from "../lib/api.ts";
 import { useAppState } from "../lib/state.tsx";
 
 export function Sheets() {
   const { sheet, closeSheet } = useAppState();
+  useEffect(() => {
+    if (!sheet) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") closeSheet();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sheet, closeSheet]);
   if (!sheet) return null;
   return (
     <div className="sheet-backdrop" onClick={closeSheet} role="presentation">
@@ -21,10 +31,19 @@ export function Sheets() {
         <div className="handle" />
         {sheet.kind === "log-dose" ? <LogDoseSheet peptideId={sheet.peptideId} /> : null}
         {sheet.kind === "log-weight" ? <LogWeightSheet /> : null}
-        {sheet.kind === "add-peptide" ? <AddPeptideSheet /> : null}
+        {sheet.kind === "add-peptide" ? <AddPeptideSheet returnTo={sheet.returnTo} /> : null}
         {sheet.kind === "add-vial" ? <AddVialSheet peptideId={sheet.peptideId} /> : null}
       </div>
     </div>
+  );
+}
+
+function SheetCancel() {
+  const { closeSheet } = useAppState();
+  return (
+    <button className="btn ghost" type="button" onClick={closeSheet}>
+      Cancel
+    </button>
   );
 }
 
@@ -60,28 +79,22 @@ function LogDoseSheet({ peptideId }: { peptideId?: string }) {
     if (peptide) setAmount(peptide.lastAmount ?? 0);
   }, [peptide]);
 
-  if (todayDoses == null) {
-    return (
-      <>
-        <h2>Log dose</h2>
-        <p className="muted">Loading…</p>
-      </>
-    );
-  }
-
   if (!peptide) {
     return (
       <>
         <h2>Log dose</h2>
         <p className="muted">Add a peptide first.</p>
-        <button className="btn" onClick={() => openSheet({ kind: "add-peptide" })}>
-          Add a peptide
-        </button>
+        <div className="row-btns">
+          <button className="btn" onClick={() => openSheet({ kind: "add-peptide", returnTo: "log-dose" })}>
+            Add a peptide
+          </button>
+          <SheetCancel />
+        </div>
       </>
     );
   }
 
-  const logged = todayDoses.find((d) => d.peptideId === peptide.id);
+  const logged = (todayDoses ?? []).find((d) => d.peptideId === peptide.id);
   const mode = doseSheetMode(logged);
 
   async function undo() {
@@ -111,9 +124,7 @@ function LogDoseSheet({ peptideId }: { peptideId?: string }) {
           <button className="btn" disabled={saving} onClick={() => void undo()}>
             {saving ? "Undoing…" : "Undo"}
           </button>
-          <button className="btn ghost" type="button" onClick={closeSheet}>
-            Close
-          </button>
+          <SheetCancel />
         </div>
       </>
     );
@@ -166,9 +177,12 @@ function LogDoseSheet({ peptideId }: { peptideId?: string }) {
         {peptide.lastAmount != null ? ` · last ${peptide.lastAmount}` : ""}
       </p>
       {error ? <p className="error">{error}</p> : null}
-      <button className="btn" disabled={saving || amount <= 0} onClick={() => void save()}>
-        {saving ? "Saving…" : "Save"}
-      </button>
+      <div className="row-btns">
+        <button className="btn" disabled={saving || amount <= 0} onClick={() => void save()}>
+          {saving ? "Saving…" : "Save"}
+        </button>
+        <SheetCancel />
+      </div>
     </>
   );
 }
@@ -180,7 +194,7 @@ function roundAmt(n: number, unit: PeptideUnit): number {
 
 function LogWeightSheet() {
   const { user, closeSheet, bump } = useAppState();
-  const unit = user?.settings.weightUnit ?? "kg";
+  const unit = user?.settings.weightUnit ?? "lb";
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   async function save() {
@@ -205,15 +219,18 @@ function LogWeightSheet() {
         <input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} autoFocus />
       </label>
       {error ? <p className="error">{error}</p> : null}
-      <button className="btn" onClick={() => void save()}>
-        Save
-      </button>
+      <div className="row-btns">
+        <button className="btn" onClick={() => void save()}>
+          Save
+        </button>
+        <SheetCancel />
+      </div>
     </>
   );
 }
 
-function AddPeptideSheet() {
-  const { closeSheet, bump, setPeptides, peptides } = useAppState();
+function AddPeptideSheet({ returnTo }: { returnTo?: "log-dose" }) {
+  const { closeSheet, bump, setPeptides, peptides, openSheet } = useAppState();
   const [name, setName] = useState("");
   const [unit, setUnit] = useState<PeptideUnit>("mcg");
   const [error, setError] = useState<string | null>(null);
@@ -225,8 +242,12 @@ function AddPeptideSheet() {
     try {
       const { peptide } = await client.createPeptide({ name: name.trim(), unit });
       setPeptides([...peptides, peptide]);
-      closeSheet();
       bump();
+      if (returnTo === "log-dose") {
+        openSheet({ kind: "log-dose", peptideId: peptide.id });
+      } else {
+        closeSheet();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not add peptide.");
     }
@@ -249,9 +270,12 @@ function AddPeptideSheet() {
         </select>
       </label>
       {error ? <p className="error">{error}</p> : null}
-      <button className="btn" onClick={() => void save()}>
-        Save
-      </button>
+      <div className="row-btns">
+        <button className="btn" onClick={() => void save()}>
+          Save
+        </button>
+        <SheetCancel />
+      </div>
     </>
   );
 }
@@ -260,23 +284,31 @@ function AddVialSheet({ peptideId }: { peptideId?: string }) {
   const { peptides, closeSheet, bump } = useAppState();
   const [pid, setPid] = useState(peptideId ?? peptides[0]?.id ?? "");
   const [total, setTotal] = useState("");
+  const [bac, setBac] = useState("");
   const [dose, setDose] = useState("");
   const [label, setLabel] = useState("");
+  const [syringe, setSyringe] = useState<SyringeUnits>(30);
   const [error, setError] = useState<string | null>(null);
   if (peptides.length === 0) {
     return (
       <>
         <h2>Add vial</h2>
         <p className="muted">Add a peptide first.</p>
-        <Link to="/protocol/peptides">Peptide library</Link>
+        <div className="row-btns">
+          <Link className="btn" to="/protocol/peptides">
+            Peptide library
+          </Link>
+          <SheetCancel />
+        </div>
       </>
     );
   }
   async function save() {
     const totalAmount = Number(total);
+    const bacMl = Number(bac);
     const doseAmt = Number(dose);
-    if (!pid || !(totalAmount > 0) || !(doseAmt > 0)) {
-      setError("Need peptide, vial amount, and dose.");
+    if (!pid || !(totalAmount > 0) || !(bacMl > 0) || !(doseAmt > 0)) {
+      setError("Need peptide, amount, BAC water, and dose.");
       return;
     }
     try {
@@ -284,6 +316,8 @@ function AddVialSheet({ peptideId }: { peptideId?: string }) {
         peptideId: pid,
         totalAmount,
         dose: doseAmt,
+        bacMl,
+        syringeUnits: syringe,
         label: label.trim() || null,
       });
       closeSheet();
@@ -306,21 +340,43 @@ function AddVialSheet({ peptideId }: { peptideId?: string }) {
         </select>
       </label>
       <label className="field">
-        <span>Label</span>
-        <input value={label} onChange={(e) => setLabel(e.target.value)} />
-      </label>
-      <label className="field">
-        <span>Amount in vial</span>
+        <span>Amount mg</span>
         <input inputMode="decimal" value={total} onChange={(e) => setTotal(e.target.value)} />
       </label>
       <label className="field">
-        <span>Dose per injection</span>
+        <span>BAC water mL</span>
+        <input inputMode="decimal" value={bac} onChange={(e) => setBac(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Dose</span>
         <input inputMode="decimal" value={dose} onChange={(e) => setDose(e.target.value)} />
       </label>
+      <label className="field">
+        <span>Label</span>
+        <input value={label} onChange={(e) => setLabel(e.target.value)} />
+      </label>
+      <div className="field">
+        <span>Syringe</span>
+        <div className="day-pills" role="group" aria-label="Syringe">
+          {SYRINGE_UNITS.map((size) => (
+            <button
+              key={size}
+              type="button"
+              className={cn("day-pill", size === syringe && "on")}
+              onClick={() => setSyringe(size)}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
+      </div>
       {error ? <p className="error">{error}</p> : null}
-      <button className="btn" onClick={() => void save()}>
-        Save
-      </button>
+      <div className="row-btns">
+        <button className="btn" onClick={() => void save()}>
+          Save
+        </button>
+        <SheetCancel />
+      </div>
     </>
   );
 }

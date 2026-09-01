@@ -82,6 +82,7 @@ export const client = {
       schedule?: import("@shared/types.ts").PeptideSchedule;
     },
   ) => api<{ peptide: import("@shared/types.ts").Peptide }>(`/api/peptides/${id}`, { method: "PATCH", json: body }),
+  deletePeptide: (id: string) => api<{ ok: true }>(`/api/peptides/${id}`, { method: "DELETE" }),
   vials: () =>
     api<{
       vials: Array<
@@ -97,6 +98,8 @@ export const client = {
     totalAmount: number;
     dose: number;
     remainingAmount?: number;
+    bacMl?: number | null;
+    syringeUnits?: 30 | 50 | 100;
   }) => api("/api/vials", { method: "POST", json: body }),
   deleteVial: (id: string) => api<{ ok: true }>(`/api/vials/${id}`, { method: "DELETE" }),
   doses: (on?: string) =>

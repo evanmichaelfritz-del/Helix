@@ -28,7 +28,21 @@ function navigatorVibrate(): VibrateFn | null {
   return (pattern) => fn.call(navigator, pattern);
 }
 
-export function haptic(kind: HapticKind, vibrate?: VibrateFn | null): boolean {
+export function motionReduced(
+  root = typeof document === "undefined" ? null : document.documentElement,
+  query = typeof matchMedia === "function" ? matchMedia.bind(globalThis) : null,
+): boolean {
+  if (root?.classList.contains("reduce-effects")) return true;
+  if (!query) return false;
+  try {
+    return query("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+}
+
+export function haptic(kind: HapticKind, vibrate?: VibrateFn | null, reduced = motionReduced()): boolean {
+  if (reduced) return false;
   const run = vibrate === undefined ? navigatorVibrate() : vibrate;
   if (!run) return false;
   const pattern = kind === "toggle" ? [...HAPTIC_TOGGLE_MS] : [HAPTIC_TAP_MS];
@@ -82,6 +96,7 @@ export function bindHaptics(root: ParentNode = document): () => void {
   }
 
   function fire(el: HTMLElement): void {
+    if (motionReduced()) return;
     const now = Date.now();
     if (now < (coolUntil.get(el) ?? 0)) return;
     coolUntil.set(el, now + 80);
@@ -99,6 +114,11 @@ export function bindHaptics(root: ParentNode = document): () => void {
   }
 
   function stamp(): void {
+    if (motionReduced() || !apple) {
+      for (const host of hosts) hits.get(host)?.remove();
+      hosts.clear();
+      return;
+    }
     const nodes = root.querySelectorAll(HAPTIC_SELECTOR);
     const seen = new Set<HTMLElement>();
     for (const node of nodes) {
@@ -159,6 +179,7 @@ export function bindHaptics(root: ParentNode = document): () => void {
   root.addEventListener("click", onClick);
 
   let observer: MutationObserver | null = null;
+  let reduceObserver: MutationObserver | null = null;
   if (apple && typeof MutationObserver === "function" && document.body) {
     stamp();
     observer = new MutationObserver(queueStamp);
@@ -166,12 +187,17 @@ export function bindHaptics(root: ParentNode = document): () => void {
     window.addEventListener("scroll", syncHits, true);
     window.addEventListener("resize", syncHits);
   }
+  if (typeof MutationObserver === "function" && document.documentElement) {
+    reduceObserver = new MutationObserver(queueStamp);
+    reduceObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  }
 
   return () => {
     root.removeEventListener("pointerdown", onDown);
     root.removeEventListener("mousedown", onDown);
     root.removeEventListener("click", onClick);
     observer?.disconnect();
+    reduceObserver?.disconnect();
     window.removeEventListener("scroll", syncHits, true);
     window.removeEventListener("resize", syncHits);
     for (const host of hosts) hits.get(host)?.remove();

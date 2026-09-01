@@ -29,6 +29,8 @@ export type PeptideRow = {
   color: string;
   last_amount: number | null;
   schedule: string;
+  body_effect?: string | null;
+  expected_results?: string | null;
   created_at: string;
 };
 
@@ -40,6 +42,8 @@ export type VialRow = {
   total_amount: number;
   remaining_amount: number;
   dose: number;
+  bac_ml?: number | null;
+  syringe_units?: number | null;
   opened_on: string | null;
   created_at: string;
 };
@@ -91,22 +95,46 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function parseSettings(raw: unknown): UserSettings {
+function rawSettings(raw: unknown): Record<string, unknown> | null {
   try {
     const parsed: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
-    if (!isRecord(parsed)) return { ...DEFAULT_SETTINGS };
-    return {
-      theme:
-        parsed.theme === "light" || parsed.theme === "dark" || parsed.theme === "system"
-          ? parsed.theme
-          : DEFAULT_SETTINGS.theme,
-      faceId: parsed.faceId === true,
-      reduceEffects: parsed.reduceEffects === true,
-      weightUnit: parsed.weightUnit === "lb" ? "lb" : "kg",
-    };
+    return isRecord(parsed) ? parsed : null;
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return null;
   }
+}
+
+function parseWeightUnit(parsed: Record<string, unknown>): UserSettings["weightUnit"] {
+  if (parsed.weightUnit === "lb") return "lb";
+  if (parsed.weightUnit === "kg" && parsed.weightUnitChosen === true) return "kg";
+  return "lb";
+}
+
+export function parseSettings(raw: unknown): UserSettings {
+  const parsed = rawSettings(raw);
+  if (!parsed) return { ...DEFAULT_SETTINGS };
+  return {
+    theme:
+      parsed.theme === "light" || parsed.theme === "dark" || parsed.theme === "system"
+        ? parsed.theme
+        : DEFAULT_SETTINGS.theme,
+    faceId: parsed.faceId === true,
+    reduceEffects: parsed.reduceEffects === true,
+    weightUnit: parseWeightUnit(parsed),
+  };
+}
+
+export function serializeSettings(settings: UserSettings): string {
+  return JSON.stringify({ ...settings, weightUnitChosen: true });
+}
+
+export function migratedWeightSettings(raw: unknown): UserSettings | null {
+  const parsed = rawSettings(raw);
+  if (!parsed) return { ...DEFAULT_SETTINGS };
+  const wasDefaultKg = parsed.weightUnit === "kg" && parsed.weightUnitChosen !== true;
+  const missing = parsed.weightUnit !== "kg" && parsed.weightUnit !== "lb";
+  if (!wasDefaultKg && !missing) return null;
+  return parseSettings(parsed);
 }
 
 export function toPublicUser(row: Omit<UserRow, "settings"> & { settings: unknown }): UserPublic {

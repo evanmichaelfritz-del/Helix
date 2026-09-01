@@ -14,7 +14,6 @@ export const GLASS_PRESS_SELECTOR = [
   ".cal-nav button",
   ".theme-open",
   ".theme-pick",
-  ".theme-x",
 ].join(", ");
 
 function pressTarget(ev: Event): HTMLElement | null {

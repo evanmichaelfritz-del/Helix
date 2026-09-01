@@ -55,7 +55,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   theme: "system",
   faceId: false,
   reduceEffects: false,
-  weightUnit: "kg",
+  weightUnit: "lb",
 };
 
 export type UserPublic = {
@@ -76,6 +76,8 @@ export type Peptide = {
   color: string;
   lastAmount: number | null;
   schedule: import("./schedule.js").PeptideSchedule;
+  bodyEffect: string | null;
+  expectedResults: string | null;
   createdAt: string;
 };
 
@@ -86,6 +88,8 @@ export type Vial = {
   totalAmount: number;
   remainingAmount: number;
   dose: number;
+  bacMl: number | null;
+  syringeUnits: 30 | 50 | 100;
   openedOn: string | null;
   createdAt: string;
 };

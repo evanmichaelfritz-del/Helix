@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useLocation } from "react-router-dom";
+import { EMPTY_HERO_TITLE } from "@shared/health.ts";
+import { cn } from "@shared/cn.ts";
 import type { ImportResult, WeighIn, WeightUnit } from "@shared/types.ts";
 import { parseImportFile } from "@shared/import/index.ts";
 import { LIVELINE_H, LIVELINE_W, livelineIndexAt, livelinePoints, livelineViewX } from "@shared/liveline.ts";
 import { ApiError, client } from "../lib/api.ts";
 import { formatWeight, hoursLabel, shortDate, signedDelta } from "../lib/format.ts";
 import { useAppState } from "../lib/state.tsx";
+import { SkeletonCards, useDelayedFlag } from "../components/Skeleton.tsx";
 
 export function VitalsPage() {
-  const { bump, user, healthDays, healthWeighIns, healthWorkouts } = useAppState();
+  const { bump, user, setUser, healthDays, healthWeighIns, healthWorkouts, appDataReady } = useAppState();
   const location = useLocation();
   const [msg, setMsg] = useState<string | null>(null);
   const [imported, setImported] = useState<ImportResult | null>(null);
-  const unit = user?.settings.weightUnit ?? "kg";
+  const unit = user?.settings.weightUnit ?? "lb";
+  const showSkeleton = useDelayedFlag(!appDataReady);
 
   useEffect(() => {
     if (location.hash !== "#sources") return;
@@ -22,13 +26,27 @@ export function VitalsPage() {
   const series = useMemo(() => trendSeries(healthDays), [healthDays]);
   const recentWeights = healthWeighIns.slice(-28);
 
+  async function setUnit(weightUnit: WeightUnit) {
+    if (!user || user.settings.weightUnit === weightUnit) return;
+    const previous = user;
+    setUser({ ...user, settings: { ...user.settings, weightUnit } });
+    try {
+      const res = await client.patchMe({ settings: { ...user.settings, weightUnit } });
+      setUser(res.user);
+    } catch {
+      setUser(previous);
+    }
+  }
+
   return (
     <>
       <h1>Vitals</h1>
+      {showSkeleton ? <SkeletonCards /> : null}
+      {appDataReady ? (
       <article className="card today-hero">
-        <p className="kicker">{series.label}</p>
         {series.values.length > 0 ? (
           <>
+            <p className="kicker">{series.label}</p>
             <div className={`hero-value ${series.tone ?? ""}`}>
               {series.latest}
               {series.unit}
@@ -36,13 +54,14 @@ export function VitalsPage() {
             <Liveline values={series.values} />
           </>
         ) : (
-          <p className="muted" style={{ marginTop: 16 }}>
-            No imported days yet. Pick a file below.
-          </p>
+          <p className="empty-hero-title">{EMPTY_HERO_TITLE}</p>
         )}
       </article>
+      ) : null}
 
-      {recentWeights.length > 0 ? <WeightCard weighIns={recentWeights} unit={unit} /> : null}
+      {appDataReady && recentWeights.length > 0 ? (
+        <WeightCard weighIns={recentWeights} unit={unit} onUnit={setUnit} />
+      ) : null}
 
       {healthWorkouts.length > 0 ? (
         <div className="stack section">
@@ -140,17 +159,32 @@ function trendSeries(days: import("@shared/types.ts").HealthDay[]): {
       unit: "",
     };
   }
-  return { label: "Trend", values: [], latest: "", unit: "" };
+  return { label: EMPTY_HERO_TITLE, values: [], latest: "", unit: "" };
 }
 
-function WeightCard(props: { weighIns: WeighIn[]; unit: WeightUnit }) {
+function WeightCard(props: { weighIns: WeighIn[]; unit: WeightUnit; onUnit: (unit: WeightUnit) => void }) {
   const start = props.weighIns[0];
   const latest = props.weighIns[props.weighIns.length - 1];
   if (!start || !latest) return null;
   const delta = latest.kg - start.kg;
   return (
     <article className="card today-hero section">
-      <p className="kicker">Weight</p>
+      <div className="weight-head">
+        <p className="kicker">Weight</p>
+        <div className="day-pills" role="group" aria-label="Weight unit">
+          {(["lb", "kg"] as const).map((u) => (
+            <button
+              key={u}
+              type="button"
+              className={cn("day-pill", props.unit === u && "on")}
+              aria-pressed={props.unit === u}
+              onClick={() => props.onUnit(u)}
+            >
+              {u}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="hero-value" style={{ fontSize: 36 }}>
         {formatWeight(latest.kg, props.unit)}
       </div>
