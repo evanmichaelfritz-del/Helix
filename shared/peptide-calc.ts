@@ -130,6 +130,12 @@ export function syringeTicks(syringe: SyringeUnits): number[] {
   return ticks;
 }
 
+export function syringeUnitMarks(syringe: SyringeUnits): number[] {
+  const marks: number[] = [];
+  for (let n = 0; n <= syringe; n += 2) marks.push(n);
+  return marks;
+}
+
 export function formatUnits(units: number): string {
   const rounded = Math.round(units * 10) / 10;
   if (Number.isInteger(rounded)) return String(rounded);

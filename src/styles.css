@@ -1108,7 +1108,7 @@ html:not(.light) .theme-mini-system {
 .calc-syringe { margin: 8px 0 4px; }
 .calc-syringe-bar {
   position: relative;
-  height: 18px;
+  height: 22px;
   border-radius: 999px;
   background: var(--solid-2);
   border: 1px solid var(--line);
@@ -1119,6 +1119,24 @@ html:not(.light) .theme-mini-system {
   inset: 0 auto 0 0;
   background: color-mix(in srgb, var(--accent) 42%, transparent);
 }
+.calc-syringe-hashes {
+  position: absolute;
+  inset: 0 7px;
+  pointer-events: none;
+}
+.calc-syringe-line {
+  position: absolute;
+  top: 6px;
+  width: 1px;
+  height: 10px;
+  background: color-mix(in srgb, var(--text) 38%, transparent);
+  transform: translateX(-50%);
+}
+.calc-syringe-line.major {
+  top: 3px;
+  height: 16px;
+  background: color-mix(in srgb, var(--text) 58%, transparent);
+}
 .calc-syringe-mark {
   position: absolute;
   top: 50%;
@@ -1127,11 +1145,12 @@ html:not(.light) .theme-mini-system {
   border-radius: 50%;
   background: var(--accent);
   transform: translate(-50%, -50%);
+  z-index: 1;
 }
 .calc-syringe-ticks {
   position: relative;
   height: 18px;
-  margin-top: 4px;
+  margin: 4px 7px 0;
 }
 .calc-syringe-ticks span {
   position: absolute;
