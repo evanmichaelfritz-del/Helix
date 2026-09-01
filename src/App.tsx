@@ -20,6 +20,7 @@ import { Sheets, ToastBar } from "./components/Sheets.tsx";
 import { AuthPage } from "./pages/Auth.tsx";
 import { AccountPage } from "./pages/Account.tsx";
 import { CalendarPage } from "./pages/Calendar.tsx";
+import { CalculatorPage } from "./pages/Calculator.tsx";
 import { DoseLogPage, PeptidesPage, ProtocolLayout, VialsPage } from "./pages/Protocol.tsx";
 import { TodayPage } from "./pages/Today.tsx";
 import { VitalsPage } from "./pages/Vitals.tsx";
@@ -127,6 +128,7 @@ function Root() {
             <Route index element={<Navigate to="vials" replace />} />
             <Route path="peptides" element={<PeptidesPage />} />
             <Route path="vials" element={<VialsPage />} />
+            <Route path="calc" element={<CalculatorPage />} />
             <Route path="log" element={<DoseLogPage />} />
           </Route>
           <Route path="/account" element={<AccountPage />} />

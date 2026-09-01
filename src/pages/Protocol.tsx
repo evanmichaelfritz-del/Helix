@@ -14,6 +14,7 @@ export function ProtocolLayout() {
       <nav className="subnav">
         <NavLink to="/protocol/vials">Vials</NavLink>
         <NavLink to="/protocol/peptides">Library</NavLink>
+        <NavLink to="/protocol/calc">Calculator</NavLink>
         <NavLink to="/protocol/log">Log</NavLink>
       </nav>
       <Outlet />
