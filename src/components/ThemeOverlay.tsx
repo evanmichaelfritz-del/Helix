@@ -43,9 +43,6 @@ export function ThemeOverlay(props: {
       >
         <header className="theme-overlay-head">
           <h2 id={titleId}>Display Settings</h2>
-          <button type="button" className="theme-x" aria-label="Close" onClick={revert}>
-            ×
-          </button>
         </header>
         <p className="theme-overlay-kicker">Color Mode</p>
         <p className="muted">Choose your interface style</p>

@@ -27,7 +27,12 @@ export function Shell({ children }: { children: ReactNode }) {
           Helix
         </div>
         {tabs.map((t) => (
-          <NavLink key={t.to} to={t.to} end={"end" in t ? t.end : false}>
+          <NavLink
+            key={t.to}
+            to={t.to}
+            end={"end" in t ? t.end : false}
+            className={({ isActive }) => (isActive ? "active" : undefined)}
+          >
             {t.icon}
             {t.label}
           </NavLink>
@@ -38,7 +43,7 @@ export function Shell({ children }: { children: ReactNode }) {
             Calendar
           </NavLink>
           <Link to="/health#sources">
-            <IconVitals />
+            <IconCal />
             Sources
           </Link>
         </div>

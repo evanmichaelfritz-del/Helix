@@ -3,16 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { ApiError, client } from "../lib/api.ts";
 import { BrandMark, GoogleMark, XMark } from "../components/icons.tsx";
+import { isIPhoneOrIPad } from "../lib/chrome.ts";
 import { useAppState } from "../lib/state.tsx";
 import type { UserPublic } from "@shared/types.ts";
 
 type Mode = "login" | "signup";
 type View = "auth" | "forgot" | "reset" | "save-passkey";
 type Busy = null | "passkey" | "google" | "x" | "password" | "forgot" | "save-passkey" | "reset";
-
-function isIPhoneOrIPad(): boolean {
-  return typeof navigator !== "undefined" && /iPhone|iPad/i.test(navigator.userAgent);
-}
 
 function passkeySignInLabel(): string {
   return isIPhoneOrIPad() ? "Sign in with Face ID" : "Sign in with passkey";

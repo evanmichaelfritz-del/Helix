@@ -798,19 +798,6 @@ html.light .theme-overlay-backdrop {
   font-weight: 600;
 }
 .theme-overlay .muted { margin: 2px 0 16px; }
-.theme-x {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--glass-edge) 35%, var(--line));
-  background: var(--glass);
-  color: var(--text);
-  font-size: 20px;
-  line-height: 1;
-  display: grid;
-  place-items: center;
-  padding: 0;
-}
 .theme-picks {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -833,8 +820,6 @@ html.light .theme-overlay-backdrop {
 }
 .theme-pick:active,
 .theme-pick.is-pressing { transform: scale(0.96); }
-.theme-x:active,
-.theme-x.is-pressing { transform: scale(0.9); }
 .theme-pick-label {
   min-height: 1.2em;
   font-family: var(--mono);
@@ -1483,9 +1468,7 @@ html.light .boot {
   .theme-open:active,
   .theme-open.is-pressing,
   .theme-pick:active,
-  .theme-pick.is-pressing,
-  .theme-x:active,
-  .theme-x.is-pressing {
+  .theme-pick.is-pressing {
     transform: none;
   }
   .theme-overlay { animation: none; }

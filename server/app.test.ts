@@ -717,6 +717,10 @@ describe("design scaffold locks", () => {
     expect(css).toMatch(/\.theme-overlay/);
     expect(readFileSync("src/components/ThemeOverlay.tsx", "utf8")).toMatch(/Display Settings/);
     expect(readFileSync("src/components/ThemeOverlay.tsx", "utf8")).toMatch(/createPortal/);
+    expect(readFileSync("src/components/ThemeOverlay.tsx", "utf8")).toMatch(/Escape/);
+    expect(readFileSync("src/components/ThemeOverlay.tsx", "utf8")).toMatch(/className="btn ghost"/);
+    expect(readFileSync("src/components/ThemeOverlay.tsx", "utf8")).not.toMatch(/theme-x/);
+    expect(readFileSync("src/lib/glass-press.ts", "utf8")).not.toMatch(/theme-x/);
     expect(readFileSync("src/pages/Account.tsx", "utf8")).toMatch(/ThemeOverlay/);
     const main = readFileSync("src/main.tsx", "utf8");
     expect(main).toMatch(/bindHaptics/);
@@ -829,6 +833,8 @@ describe("design scaffold locks", () => {
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/pointer:\s*fine/);
     expect(shell).toMatch(/to="\/health#sources"/);
     expect(shell).not.toMatch(/NavLink to="\/health#sources"/);
+    expect(shell).toMatch(/<Link to="\/health#sources">\s*<IconCal \/>/);
+    expect(shell.match(/IconVitals/g)).toEqual(["IconVitals"]);
     expect(vitals).toMatch(/function Liveline/);
     expect(vitals).toMatch(/function WeightLine/);
     expect(vitals).toMatch(/from \{formatWeight\(start\.kg/);
@@ -854,6 +860,10 @@ describe("design scaffold locks", () => {
     expect(app).toMatch(/path="calc"/);
     expect(calc).toMatch(/formulateDraw/);
     expect(calc).toMatch(/formulateReverse/);
+    expect(calc).toMatch(/useState<SyringeUnits>\(30\)/);
+    expect(calc).not.toMatch(/rows\.length > 1 \? `Peptide \$\{i \+ 1\}` : "mg"/);
+    expect(calc).not.toMatch(/rows\.length > 1 \? `Peptide \$\{i \+ 1\}` : doseUnit/);
+    expect(calc).toMatch(/rows\.length > 1 \? <span className="muted">\{`Peptide \$\{i \+ 1\}`\}<\/span> : null/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe-line/);
     expect(readFileSync("src/pages/Calculator.tsx", "utf8")).toMatch(/syringeUnitMarks/);
@@ -930,6 +940,9 @@ describe("auth page lock", () => {
     expect(chrome).toContain("UNLOCKED_KEY");
     expect(chrome).toContain("markUnlocked");
     expect(you).toContain("registerFaceId");
+    expect(you).toContain("isIPhoneOrIPad()");
+    expect(chrome).toContain("isIPhoneOrIPad");
+    expect(chrome).toMatch(/\/iPhone\|iPad\/i/);
     expect(you).toContain("<strong>Face ID</strong>");
     expect(you).toContain("Unlock this device with Face ID");
     expect(you).toContain("Register this device");
