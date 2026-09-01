@@ -395,6 +395,8 @@ html.reduce-effects {
   padding: 10px 20px 28px;
   max-height: 88dvh;
   background: var(--solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 @media (min-width: 860px) {
   .sheet { border-radius: 24px; }
@@ -793,6 +795,8 @@ html.light .theme-overlay-backdrop {
   padding: 22px 22px 18px;
   overflow-x: hidden;
   background: var(--solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   animation: theme-overlay-in 0.32s var(--spring);
 }
 .theme-overlay-head {

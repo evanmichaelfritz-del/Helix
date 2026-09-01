@@ -765,13 +765,15 @@ describe("design scaffold locks", () => {
     expect(css).toMatch(/@media \(min-width:\s*860px\) \{[\s\S]*?\.dock \{ display: none; \}[\s\S]*?\.rail \{ display: flex; \}/);
     const overlay = css.match(/^\.theme-overlay \{[^}]+\}/m)?.[0] ?? "";
     expect(overlay).toMatch(/background:\s*var\(--solid\)/);
-    expect(overlay).not.toMatch(/backdrop-filter/);
+    expect(overlay).toMatch(/backdrop-filter:\s*none/);
+    expect(overlay).not.toMatch(/blur\(/);
     expect(css).toMatch(/\.theme-picks \{[\s\S]*?repeat\(3, minmax\(0, 1fr\)\)/);
     expect(readFileSync("src/components/ThemeOverlay.tsx", "utf8")).toMatch(/\{card\.label\}/);
     expect(readFileSync("src/components/ThemeOverlay.tsx", "utf8")).not.toMatch(/on \? card\.label/);
     const sheet = css.match(/^\.sheet \{[^}]+\}/m)?.[0] ?? "";
     expect(sheet).toMatch(/background:\s*var\(--solid\)/);
-    expect(sheet).not.toMatch(/backdrop-filter/);
+    expect(sheet).toMatch(/backdrop-filter:\s*none/);
+    expect(sheet).not.toMatch(/blur\(/);
     expect(css).toMatch(/\.sheet \.btn,[\s\S]*?background: var\(--primary\)/);
     expect(css).toMatch(/\.sheet \.btn,[\s\S]*?backdrop-filter: none/);
   });
