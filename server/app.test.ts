@@ -430,6 +430,29 @@ describe("doses", () => {
     const list = (await vials.json()) as { vials: Array<{ remainingAmount: number; remainingInjections: number }> };
     expect(list.vials[0].remainingInjections).toBe(9);
   });
+
+  it("deletes a peptide and its vial", async () => {
+    const app = await testApp();
+    const cookie = await signup(app);
+    const headers = { Cookie: cookie, "Content-Type": "application/json" };
+    const created = await app.request("/api/peptides", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "BPC-157", unit: "mcg" }),
+    });
+    const peptide = ((await created.json()) as { peptide: { id: string } }).peptide;
+    await app.request("/api/vials", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ peptideId: peptide.id, totalAmount: 2500, dose: 250 }),
+    });
+    const gone = await app.request(`/api/peptides/${peptide.id}`, { method: "DELETE", headers });
+    expect(gone.status).toBe(200);
+    const peptides = await app.request("/api/peptides", { headers });
+    expect(((await peptides.json()) as { peptides: unknown[] }).peptides).toEqual([]);
+    const vials = await app.request("/api/vials", { headers });
+    expect(((await vials.json()) as { vials: unknown[] }).vials).toEqual([]);
+  });
 });
 
 describe("dose sheet mode", () => {
@@ -719,6 +742,11 @@ describe("design scaffold locks", () => {
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe-line/);
     expect(readFileSync("src/pages/Calculator.tsx", "utf8")).toMatch(/syringeUnitMarks/);
     expect(readFileSync("shared/peptide-calc.ts", "utf8")).toMatch(/UNITS_PER_ML = 100/);
+    expect(protocol).toMatch(/remainingLine/);
+    expect(protocol).toMatch(/remainingInjections/);
+    expect(protocol).not.toMatch(/remainingAmount\} remaining/);
+    expect(protocol).toMatch(/Delete peptide/);
+    expect(readFileSync("src/lib/api.ts", "utf8")).toMatch(/deletePeptide/);
   });
 });
 
