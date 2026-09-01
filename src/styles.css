@@ -267,7 +267,7 @@ html.reduce-effects {
   margin-left: 4px;
 }
 
-.stack { display: grid; gap: 12px; }
+.stack { display: grid; gap: 12px; min-width: 0; }
 .workouts { margin-top: 12px; }
 .workout {
   display: flex;
@@ -491,7 +491,7 @@ html.reduce-effects {
 .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
 .row-btns { display: grid; gap: 8px; margin-top: 8px; }
 
-.field { display: grid; gap: 6px; margin-bottom: 12px; }
+.field { display: grid; gap: 6px; margin-bottom: 12px; min-width: 0; }
 .field span { font-size: 12px; color: var(--muted); }
 .field input, .field select {
   background: var(--glass);
@@ -1076,6 +1076,7 @@ html:not(.light) .theme-mini-system {
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
+  min-width: 0;
 }
 .calc-row input,
 .calc-row select {
@@ -1087,8 +1088,8 @@ html:not(.light) .theme-mini-system {
   padding: 12px;
   box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.18);
 }
-.calc-row input { flex: 1; min-width: 0; }
-.calc-row select { width: 88px; flex: 0 0 auto; }
+.calc-row input { flex: 1 1 0; min-width: 0; }
+.calc-row select { width: 88px; flex: 0 0 auto; max-width: 100%; }
 .calc-row > .muted:first-child { width: 72px; flex: 0 0 auto; }
 .calc-remove {
   width: 36px;

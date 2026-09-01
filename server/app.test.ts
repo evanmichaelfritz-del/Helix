@@ -865,6 +865,10 @@ describe("design scaffold locks", () => {
     expect(calc).not.toMatch(/rows\.length > 1 \? `Peptide \$\{i \+ 1\}` : "mg"/);
     expect(calc).not.toMatch(/rows\.length > 1 \? `Peptide \$\{i \+ 1\}` : doseUnit/);
     expect(calc).toMatch(/rows\.length > 1 \? <span className="muted">\{`Peptide \$\{i \+ 1\}`\}<\/span> : null/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.stack \{ display: grid; gap: 12px; min-width: 0; \}/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.field \{ display: grid; gap: 6px; margin-bottom: 12px; min-width: 0; \}/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-row \{[\s\S]*?min-width:\s*0/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-row input \{ flex: 1 1 0; min-width: 0; \}/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe-line/);
     expect(readFileSync("src/pages/Calculator.tsx", "utf8")).toMatch(/syringeUnitMarks/);
