@@ -50,6 +50,28 @@ export async function migrate(db: Database): Promise<void> {
   if (db.dialect === "sqlite") {
     await sqliteRelaxUsers(db);
     await sqliteAddPeptideSchedule(db);
+    await sqliteAddPeptideCopy(db);
+    await sqliteAddVialMix(db);
+  }
+}
+
+async function sqliteAddPeptideCopy(db: Database): Promise<void> {
+  const cols = await db.all<{ name: string }>("PRAGMA table_info(peptides)");
+  if (!cols.some((col) => col.name === "body_effect")) {
+    await db.exec("ALTER TABLE peptides ADD COLUMN body_effect TEXT");
+  }
+  if (!cols.some((col) => col.name === "expected_results")) {
+    await db.exec("ALTER TABLE peptides ADD COLUMN expected_results TEXT");
+  }
+}
+
+async function sqliteAddVialMix(db: Database): Promise<void> {
+  const cols = await db.all<{ name: string }>("PRAGMA table_info(vials)");
+  if (!cols.some((col) => col.name === "bac_ml")) {
+    await db.exec("ALTER TABLE vials ADD COLUMN bac_ml REAL");
+  }
+  if (!cols.some((col) => col.name === "syringe_units")) {
+    await db.exec("ALTER TABLE vials ADD COLUMN syringe_units INTEGER NOT NULL DEFAULT 30");
   }
 }
 

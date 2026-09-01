@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HAPTIC_TAP_MS, HAPTIC_TOGGLE_MS, haptic, isAppleTouch } from "./haptics.ts";
+import { HAPTIC_TAP_MS, HAPTIC_TOGGLE_MS, haptic, isAppleTouch, motionReduced } from "./haptics.ts";
 
 describe("haptic", () => {
   it("sends a short pulse for a tap", () => {
@@ -31,6 +31,26 @@ describe("haptic", () => {
         throw new Error("blocked");
       }),
     ).toBe(false);
+  });
+
+  it("no-ops when html.reduce-effects or prefers-reduced-motion", () => {
+    const calls: number[][] = [];
+    const html = { classList: { contains: (name: string) => name === "reduce-effects" } } as unknown as HTMLElement;
+    expect(motionReduced(html, null)).toBe(true);
+    expect(
+      haptic(
+        "tap",
+        (pattern) => {
+          calls.push(pattern);
+          return true;
+        },
+        true,
+      ),
+    ).toBe(false);
+    expect(calls).toEqual([]);
+    const quiet = { classList: { contains: () => false } } as unknown as HTMLElement;
+    expect(motionReduced(quiet, () => ({ matches: true }) as MediaQueryList)).toBe(true);
+    expect(motionReduced(quiet, () => ({ matches: false }) as MediaQueryList)).toBe(false);
   });
 
   it("detects iPhone and iPad user agents", () => {

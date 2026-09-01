@@ -19,7 +19,7 @@ export type VialWithRunway = Vial & {
 export type Sheet =
   | { kind: "log-dose"; peptideId?: string }
   | { kind: "log-weight" }
-  | { kind: "add-peptide" }
+  | { kind: "add-peptide"; returnTo?: "log-dose" }
   | { kind: "add-vial"; peptideId?: string };
 
 type Toast = { message: string; undo?: () => Promise<void> };

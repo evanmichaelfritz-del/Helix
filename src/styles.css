@@ -408,6 +408,25 @@ html.reduce-effects {
   background: var(--line);
   margin: 6px auto 10px;
 }
+@media (pointer: fine) {
+  .handle { display: none; }
+}
+.skeleton-card {
+  min-height: 132px;
+  background: var(--solid);
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.weight-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.weight-head .kicker { margin: 0; }
 
 .stepper {
   display: flex;
@@ -495,7 +514,17 @@ html.reduce-effects {
 .auth .card { width: min(400px, 100%); padding: 28px; }
 .auth h1 { font-size: 28px; letter-spacing: -0.03em; text-transform: none; color: var(--text); margin: 0 0 6px; }
 .auth p { color: var(--muted); margin: 0 0 20px; }
-.auth .error { color: var(--red); }
+.auth .error {
+  color: var(--red);
+  min-height: 1.25em;
+  margin: 0 0 12px;
+}
+.auth input {
+  padding: 12px 14px;
+  overflow-x: auto;
+  box-sizing: border-box;
+  text-overflow: clip;
+}
 .auth-or {
   display: flex;
   align-items: center;
@@ -514,7 +543,7 @@ html.reduce-effects {
 .auth-forgot {
   display: block;
   width: max-content;
-  margin: -4px 0 12px;
+  margin: -4px 0 8px;
   padding: 0;
   border: 0;
   background: none;
@@ -1462,4 +1491,5 @@ html.light .boot {
     transform: none;
   }
   .theme-overlay { animation: none; }
+  .skeleton-card { animation: none; }
 }

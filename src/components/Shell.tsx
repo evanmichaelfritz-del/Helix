@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import type { ReactNode } from "react";
 import { cn } from "@shared/cn.ts";
 import { BrandMark, IconCal, IconProtocol, IconToday, IconVitals, IconYou } from "./icons.tsx";
@@ -37,10 +37,10 @@ export function Shell({ children }: { children: ReactNode }) {
             <IconCal />
             Calendar
           </NavLink>
-          <NavLink to="/health#sources">
+          <Link to="/health#sources">
             <IconVitals />
             Sources
-          </NavLink>
+          </Link>
         </div>
       </nav>
       <nav className="dock chrome" aria-label="Primary">

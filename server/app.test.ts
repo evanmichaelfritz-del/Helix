@@ -431,6 +431,68 @@ describe("doses", () => {
     expect(list.vials[0].remainingInjections).toBe(9);
   });
 
+  it("lists doses by logged_on then logged_at, newest day first", async () => {
+    const db = await createSqliteDb(":memory:");
+    await migrate(db);
+    const app = createApp(db);
+    const cookie = await signup(app);
+    const headers = { Cookie: cookie, "Content-Type": "application/json" };
+    const me = await app.request("/api/me", { headers });
+    const user = ((await me.json()) as { user: { id: string } }).user;
+    const created = await app.request("/api/peptides", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Tesamorelin", unit: "mcg" }),
+    });
+    const peptide = ((await created.json()) as { peptide: { id: string } }).peptide;
+    const at = "2026-04-02T12:00:00.000Z";
+    const today = "2026-09-01";
+    for (const [id, on] of [
+      ["d1", "2026-04-01"],
+      ["d2", "2026-04-02"],
+      ["d3", today],
+    ] as const) {
+      await db.run(
+        "INSERT INTO doses (id, user_id, peptide_id, vial_id, amount, unit, logged_on, logged_at, undone) VALUES (?, ?, ?, NULL, 250, 'mcg', ?, ?, 0)",
+        [id, user.id, peptide.id, on, at],
+      );
+    }
+    const listed = await app.request("/api/doses", { headers });
+    const doses = ((await listed.json()) as { doses: Array<{ loggedOn: string }> }).doses;
+    expect(doses.map((d) => d.loggedOn)).toEqual([today, "2026-04-02", "2026-04-01"]);
+    const calendar = readFileSync("src/pages/Calendar.tsx", "utf8");
+    const log = readFileSync("src/pages/Protocol.tsx", "utf8");
+    expect(calendar).not.toMatch(/doses\.sort\(/);
+    expect(log).not.toMatch(/doses\.sort\(/);
+    expect(readFileSync("server/routes/logs.ts", "utf8")).toMatch(/ORDER BY logged_on DESC, logged_at DESC/);
+  });
+
+  it("404s peptide delete for another user and keeps CASCADE for the owner", async () => {
+    const app = await testApp();
+    const cookieA = await signup(app, "owner@example.com");
+    const cookieB = await signup(app, "other@example.com");
+    const headersA = { Cookie: cookieA, "Content-Type": "application/json" };
+    const created = await app.request("/api/peptides", {
+      method: "POST",
+      headers: headersA,
+      body: JSON.stringify({ name: "Tesamorelin", unit: "mcg" }),
+    });
+    const peptide = ((await created.json()) as { peptide: { id: string } }).peptide;
+    const stolen = await app.request(`/api/peptides/${peptide.id}`, {
+      method: "DELETE",
+      headers: { Cookie: cookieB },
+    });
+    expect(stolen.status).toBe(404);
+    const still = await app.request("/api/peptides", { headers: { Cookie: cookieA } });
+    expect(((await still.json()) as { peptides: Array<{ id: string }> }).peptides.map((p) => p.id)).toEqual([
+      peptide.id,
+    ]);
+    const own = await app.request(`/api/peptides/${peptide.id}`, { method: "DELETE", headers: headersA });
+    expect(own.status).toBe(200);
+    const empty = await app.request("/api/peptides", { headers: { Cookie: cookieA } });
+    expect(((await empty.json()) as { peptides: unknown[] }).peptides).toEqual([]);
+  });
+
   it("deletes a used-up vial and keeps the peptide and its doses", async () => {
     const app = await testApp();
     const cookie = await signup(app);
@@ -725,6 +787,21 @@ describe("design scaffold locks", () => {
     expect(vitals).toMatch(/Garmin JSON dailies zip/);
     expect(vitals).toMatch(/Whoop CSV/);
     expect(vitals).toMatch(/Apple Health export/);
+    expect(vitals).toMatch(/EMPTY_HERO_TITLE/);
+    expect(vitals).not.toMatch(/No imported days yet/);
+    expect(vitals).not.toMatch(/label: "Trend"/);
+    expect(vitals).toMatch(/day-pill/);
+    expect(today).not.toMatch(/Loading…/);
+    expect(readFileSync("src/components/Sheets.tsx", "utf8")).not.toMatch(/Loading…/);
+    expect(readFileSync("src/components/Sheets.tsx", "utf8")).toMatch(/Escape/);
+    expect(readFileSync("src/components/Sheets.tsx", "utf8")).toMatch(/returnTo: "log-dose"/);
+    expect(readFileSync("src/components/Sheets.tsx", "utf8")).toMatch(/BAC water mL/);
+    expect(readFileSync("src/components/Sheets.tsx", "utf8")).not.toMatch(/formulateReverse/);
+    expect(readFileSync("src/components/Skeleton.tsx", "utf8")).toMatch(/skeleton-pulse|Skeleton/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/skeleton-pulse/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/pointer:\s*fine/);
+    expect(shell).toMatch(/to="\/health#sources"/);
+    expect(shell).not.toMatch(/NavLink to="\/health#sources"/);
     expect(vitals).toMatch(/function Liveline/);
     expect(vitals).toMatch(/function WeightLine/);
     expect(vitals).toMatch(/from \{formatWeight\(start\.kg/);
@@ -758,9 +835,18 @@ describe("design scaffold locks", () => {
     expect(protocol).toMatch(/remainingInjections/);
     expect(protocol).not.toMatch(/remainingAmount\} remaining/);
     expect(protocol).toMatch(/Delete vial/);
-    expect(protocol).not.toMatch(/Delete peptide/);
+    expect(protocol).toMatch(/Delete peptide/);
+    expect(protocol).toMatch(/Delete this peptide/);
+    expect(protocol).toMatch(/This removes \{p\.name\}, its vials, and its dose history/);
+    expect(protocol).toMatch(/What it does/);
+    expect(protocol).toMatch(/What you may notice\./);
+    expect(protocol).toMatch(/No description yet\./);
+    expect(protocol).toMatch(/Educational summary — not medical advice/);
+    expect(protocol).not.toMatch(/enrichPeptide/);
     expect(readFileSync("src/lib/api.ts", "utf8")).toMatch(/deleteVial/);
-    expect(readFileSync("src/lib/api.ts", "utf8")).not.toMatch(/deletePeptide/);
+    expect(readFileSync("src/lib/api.ts", "utf8")).toMatch(/deletePeptide/);
+    expect(readFileSync("src/pages/Protocol.tsx", "utf8")).toMatch(/function VialsPage/);
+    expect(readFileSync("src/pages/Protocol.tsx", "utf8")).toMatch(/function PeptidesPage/);
   });
 });
 
@@ -791,6 +877,10 @@ describe("auth page lock", () => {
     expect(text).not.toMatch(/Apple/);
     expect(text).not.toMatch(/WebAuthn/);
     expect(text).not.toMatch(/Twitter/);
+    expect(text).toMatch(/error \?\? ""/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.auth \.card \{ width: min\(400px, 100%\)/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.auth input \{/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/padding: 12px 14px/);
   });
 
   it("keeps the You Face ID overlay as a client lock", () => {
@@ -949,6 +1039,35 @@ describe("auth backend", () => {
     expect(patch.status).toBe(200);
     const body = (await patch.json()) as { user: { settings: { faceId: boolean } } };
     expect(body.user.settings.faceId).toBe(true);
+  });
+
+  it("defaults weightUnit to lb and migrates stored kg once", async () => {
+    const db = await createSqliteDb(":memory:");
+    await migrate(db);
+    const app = createApp(db);
+    const cookie = await signup(app);
+    const headers = { Cookie: cookie, "Content-Type": "application/json" };
+    const fresh = await app.request("/api/me", { headers });
+    const first = (await fresh.json()) as { user: { id: string; settings: { weightUnit: string } } };
+    expect(first.user.settings.weightUnit).toBe("lb");
+    await db.run("UPDATE users SET settings = ? WHERE id = ?", [
+      JSON.stringify({ theme: "system", faceId: false, reduceEffects: false, weightUnit: "kg" }),
+      first.user.id,
+    ]);
+    const migrated = await app.request("/api/me", { headers });
+    expect(((await migrated.json()) as { user: { settings: { weightUnit: string } } }).user.settings.weightUnit).toBe(
+      "lb",
+    );
+    const stored = await db.get<{ settings: string }>("SELECT settings FROM users WHERE id = ?", [first.user.id]);
+    expect(JSON.parse(stored?.settings ?? "{}")).toMatchObject({ weightUnit: "lb", weightUnitChosen: true });
+    const patch = await app.request("/api/me", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ settings: { weightUnit: "kg" } }),
+    });
+    expect(((await patch.json()) as { user: { settings: { weightUnit: string } } }).user.settings.weightUnit).toBe("kg");
+    const again = await app.request("/api/me", { headers });
+    expect(((await again.json()) as { user: { settings: { weightUnit: string } } }).user.settings.weightUnit).toBe("kg");
   });
 
   it("fail-closes Google and X start when env is missing", async () => {

@@ -13,6 +13,7 @@ import { ApiError, client } from "../lib/api.ts";
 import { dayHeading, formatWeight, hoursLabel, signedDelta } from "../lib/format.ts";
 import { useAppState } from "../lib/state.tsx";
 import { PeptideSwatch, VialRunway } from "../components/Shell.tsx";
+import { SkeletonCards, useDelayedFlag } from "../components/Skeleton.tsx";
 
 export function TodayPage() {
   const {
@@ -33,12 +34,19 @@ export function TodayPage() {
   const [fabOpen, setFabOpen] = useState(false);
   const [loggingId, setLoggingId] = useState<string | null>(null);
   const on = todayLocal();
-  const unit = user?.settings.weightUnit ?? "kg";
+  const unit = user?.settings.weightUnit ?? "lb";
   const scheduledDoses = buildTodayScheduledDoses({ peptides, vials, doses, on });
+  const showSkeleton = useDelayedFlag(!todayPayload && !appDataReady);
 
   if (todayError) return <p className="error">{todayError}</p>;
   if (!todayPayload) {
-    return appDataReady ? <p className="muted">Nothing for today yet.</p> : <p className="muted">Loading…</p>;
+    if (appDataReady) return <p className="muted">Nothing for today yet.</p>;
+    return showSkeleton ? (
+      <>
+        <h1>Today</h1>
+        <SkeletonCards />
+      </>
+    ) : null;
   }
 
   const data = todayPayload;

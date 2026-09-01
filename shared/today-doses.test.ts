@@ -10,6 +10,8 @@ const peptide = (id: string, name: string, schedule = DEFAULT_PEPTIDE_SCHEDULE):
   color: "#7EE0C8",
   lastAmount: 250,
   schedule,
+  bodyEffect: null,
+  expectedResults: null,
   createdAt: "2026-01-01T00:00:00.000Z",
 });
 
@@ -29,6 +31,8 @@ describe("buildTodayScheduledDoses", () => {
           totalAmount: 2500,
           remainingAmount: 2000,
           dose: 250,
+          bacMl: null,
+          syringeUnits: 30,
           openedOn: null,
           createdAt: "2026-01-01T00:00:00.000Z",
         },

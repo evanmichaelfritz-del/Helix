@@ -292,7 +292,7 @@ export function AuthPage(props: { offerSavePasskey?: boolean; onSignedUp?: () =>
                   Forgot password?
                 </button>
               ) : null}
-              {error ? <p className="error">{error}</p> : null}
+              <p className="error">{error ?? ""}</p>
               <button className="btn" disabled={disabled}>
                 {busy === "password" ? "…" : mode === "login" ? "Log in" : "Create account"}
               </button>

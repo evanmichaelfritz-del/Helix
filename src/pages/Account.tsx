@@ -122,8 +122,8 @@ export function AccountPage() {
             value={s.weightUnit}
             onChange={(e) => void patch({ weightUnit: e.target.value as typeof s.weightUnit })}
           >
-            <option value="kg">kg</option>
             <option value="lb">lb</option>
+            <option value="kg">kg</option>
           </select>
         </div>
       </article>

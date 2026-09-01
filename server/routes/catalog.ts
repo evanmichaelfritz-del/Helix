@@ -105,7 +105,12 @@ peptideRoutes.patch(
 peptideRoutes.delete("/:id", async (c) => {
   const user = requireUser(c);
   const db = c.get("db");
-  await db.run("DELETE FROM peptides WHERE id = ? AND user_id = ?", [c.req.param("id"), user.id]);
+  const row = await db.get<PeptideRow>("SELECT * FROM peptides WHERE id = ? AND user_id = ?", [
+    c.req.param("id"),
+    user.id,
+  ]);
+  if (!row) return c.json({ error: "Peptide not found." }, 404);
+  await db.run("DELETE FROM peptides WHERE id = ? AND user_id = ?", [row.id, user.id]);
   return c.json({ ok: true });
 });
 
@@ -137,6 +142,8 @@ vialRoutes.post(
       totalAmount: z.number().positive(),
       remainingAmount: z.number().min(0).optional(),
       dose: z.number().positive(),
+      bacMl: z.number().positive().nullable().optional(),
+      syringeUnits: z.union([z.literal(30), z.literal(50), z.literal(100)]).optional(),
       openedOn: z.string().nullable().optional(),
     }),
   ),
@@ -158,11 +165,13 @@ vialRoutes.post(
       total_amount: body.totalAmount,
       remaining_amount: remaining,
       dose: body.dose,
+      bac_ml: body.bacMl ?? null,
+      syringe_units: body.syringeUnits ?? 30,
       opened_on: body.openedOn ?? null,
       created_at: new Date().toISOString(),
     };
     await db.run(
-      "INSERT INTO vials (id, user_id, peptide_id, label, total_amount, remaining_amount, dose, opened_on, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO vials (id, user_id, peptide_id, label, total_amount, remaining_amount, dose, bac_ml, syringe_units, opened_on, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         row.id,
         row.user_id,
@@ -171,6 +180,8 @@ vialRoutes.post(
         row.total_amount,
         row.remaining_amount,
         row.dose,
+        row.bac_ml ?? null,
+        row.syringe_units ?? 30,
         row.opened_on,
         row.created_at,
       ],

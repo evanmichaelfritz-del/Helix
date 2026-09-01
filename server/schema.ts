@@ -20,6 +20,8 @@ export const SQLITE_SCHEMA = [
     color TEXT NOT NULL,
     last_amount REAL,
     schedule TEXT NOT NULL DEFAULT '{"days":[0,1,2,3,4,5,6],"morning":true,"evening":false}',
+    body_effect TEXT,
+    expected_results TEXT,
     created_at TEXT NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS vials (
@@ -30,6 +32,8 @@ export const SQLITE_SCHEMA = [
     total_amount REAL NOT NULL,
     remaining_amount REAL NOT NULL,
     dose REAL NOT NULL,
+    bac_ml REAL,
+    syringe_units INTEGER NOT NULL DEFAULT 30,
     opened_on TEXT,
     created_at TEXT NOT NULL
   )`,
@@ -133,6 +137,8 @@ export const POSTGRES_SCHEMA = [
     color text NOT NULL,
     last_amount double precision,
     schedule text NOT NULL DEFAULT '{"days":[0,1,2,3,4,5,6],"morning":true,"evening":false}',
+    body_effect text,
+    expected_results text,
     created_at timestamptz NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS vials (
@@ -143,6 +149,8 @@ export const POSTGRES_SCHEMA = [
     total_amount double precision NOT NULL,
     remaining_amount double precision NOT NULL,
     dose double precision NOT NULL,
+    bac_ml double precision,
+    syringe_units integer NOT NULL DEFAULT 30,
     opened_on text,
     created_at timestamptz NOT NULL
   )`,
@@ -225,6 +233,10 @@ export const POSTGRES_SCHEMA = [
   `CREATE INDEX IF NOT EXISTS identities_user ON identities(user_id)`,
   `CREATE INDEX IF NOT EXISTS webauthn_credentials_user ON webauthn_credentials(user_id)`,
   `ALTER TABLE peptides ADD COLUMN IF NOT EXISTS schedule text NOT NULL DEFAULT '{"days":[0,1,2,3,4,5,6],"morning":true,"evening":false}'`,
+  `ALTER TABLE peptides ADD COLUMN IF NOT EXISTS body_effect text`,
+  `ALTER TABLE peptides ADD COLUMN IF NOT EXISTS expected_results text`,
+  `ALTER TABLE vials ADD COLUMN IF NOT EXISTS bac_ml double precision`,
+  `ALTER TABLE vials ADD COLUMN IF NOT EXISTS syringe_units integer NOT NULL DEFAULT 30`,
 ];
 
 export function schemaFor(dialect: "sqlite" | "postgres"): string[] {

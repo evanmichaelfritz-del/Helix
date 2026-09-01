@@ -30,8 +30,16 @@ export function mapPeptide(row: PeptideRow): Peptide {
     color: row.color,
     lastAmount: num(row.last_amount),
     schedule: parsePeptideSchedule(scheduleRaw),
+    bodyEffect: row.body_effect ?? null,
+    expectedResults: row.expected_results ?? null,
     createdAt: row.created_at,
   };
+}
+
+function syringeOf(value: unknown): Vial["syringeUnits"] {
+  if (value === 50 || value === "50") return 50;
+  if (value === 100 || value === "100") return 100;
+  return 30;
 }
 
 export function mapVial(row: VialRow): Vial {
@@ -42,6 +50,8 @@ export function mapVial(row: VialRow): Vial {
     totalAmount: Number(row.total_amount),
     remainingAmount: Number(row.remaining_amount),
     dose: Number(row.dose),
+    bacMl: num(row.bac_ml),
+    syringeUnits: syringeOf(row.syringe_units),
     openedOn: row.opened_on,
     createdAt: row.created_at,
   };

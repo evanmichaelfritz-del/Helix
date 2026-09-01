@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSettings, toPublicUser } from "./context.js";
+import { migratedWeightSettings, parseSettings, serializeSettings, toPublicUser } from "./context.js";
 import { DEFAULT_SETTINGS } from "../shared/types.js";
 
 describe("parseSettings", () => {
@@ -14,21 +14,40 @@ describe("parseSettings", () => {
 
   it("reads a Neon jsonb object without JSON.parse-ing it", () => {
     expect(
-      parseSettings({ theme: "light", faceId: false, reduceEffects: true, weightUnit: "kg" }),
+      parseSettings({ theme: "light", faceId: false, reduceEffects: true, weightUnit: "lb" }),
     ).toEqual({
       theme: "light",
       faceId: false,
       reduceEffects: true,
-      weightUnit: "kg",
+      weightUnit: "lb",
     });
   });
 
-  it("does not collapse a jsonb object to defaults", () => {
+  it("defaults missing weightUnit to lb", () => {
     expect(parseSettings({ theme: "dark", reduceEffects: true })).toEqual({
       theme: "dark",
       faceId: false,
       reduceEffects: true,
+      weightUnit: "lb",
+    });
+  });
+
+  it("migrates stored kg default to lb unless it was a choice", () => {
+    expect(parseSettings({ weightUnit: "kg" })).toEqual({
+      ...DEFAULT_SETTINGS,
+      weightUnit: "lb",
+    });
+    expect(parseSettings({ weightUnit: "kg", weightUnitChosen: true })).toEqual({
+      ...DEFAULT_SETTINGS,
       weightUnit: "kg",
+    });
+    expect(DEFAULT_SETTINGS.weightUnit).toBe("lb");
+    expect(migratedWeightSettings({ weightUnit: "kg" })?.weightUnit).toBe("lb");
+    expect(migratedWeightSettings({ weightUnit: "kg", weightUnitChosen: true })).toBeNull();
+    expect(migratedWeightSettings({ weightUnit: "lb" })).toBeNull();
+    expect(JSON.parse(serializeSettings({ ...DEFAULT_SETTINGS, weightUnit: "kg" }))).toMatchObject({
+      weightUnit: "kg",
+      weightUnitChosen: true,
     });
   });
 

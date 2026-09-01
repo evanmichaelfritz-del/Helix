@@ -13,6 +13,8 @@ function peptide(partial: Pick<Peptide, "id" | "name" | "color">): Peptide {
     unit: "mcg",
     lastAmount: 250,
     schedule: DEFAULT_PEPTIDE_SCHEDULE,
+    bodyEffect: null,
+    expectedResults: null,
     createdAt: "2026-08-01T00:00:00.000Z",
     ...partial,
   };

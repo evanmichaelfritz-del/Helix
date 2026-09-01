@@ -2,13 +2,20 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { requireUser } from "../auth.js";
-import { parseSettings, toPublicUser, type Env } from "../context.js";
+import { migratedWeightSettings, parseSettings, serializeSettings, toPublicUser, type Env } from "../context.js";
 import { DEFAULT_SETTINGS } from "../../shared/types.js";
 
 export const meRoutes = new Hono<Env>();
 
-meRoutes.get("/", (c) => {
+meRoutes.get("/", async (c) => {
   const user = requireUser(c);
+  const migrated = migratedWeightSettings(user.settings);
+  if (migrated) {
+    const db = c.get("db");
+    const stored = serializeSettings(migrated);
+    await db.run("UPDATE users SET settings = ? WHERE id = ?", [stored, user.id]);
+    return c.json({ user: toPublicUser({ ...user, settings: stored }) });
+  }
   return c.json({ user: toPublicUser(user) });
 });
 
@@ -43,7 +50,7 @@ meRoutes.patch(
     const db = c.get("db");
     await db.run("UPDATE users SET display_name = ?, settings = ? WHERE id = ?", [
       displayName,
-      JSON.stringify(settings),
+      serializeSettings(settings),
       user.id,
     ]);
     const next = await db.get<typeof user>(
