@@ -732,15 +732,30 @@ describe("design scaffold locks", () => {
     const card = css.match(/^\.card \{[^}]+\}/m)?.[0] ?? "";
     expect(card).toMatch(/background:\s*var\(--solid\)/);
     expect(card).not.toMatch(/backdrop-filter/);
-    expect(css).toMatch(/\.auth \.card \{ width: min\(400px, 100%\); padding: 28px; \}/);
-    expect(css).toMatch(/\.lock \.card \{ padding: 28px; width: min\(400px, 100%\); text-align: left; \}/);
+    expect(card).not.toMatch(/color-mix\(in srgb, var\(--solid\) 86%/);
+    expect(card).not.toMatch(/blur\(18px\)/);
+    const authCard = css.match(/^\.auth \.card \{[^}]+\}/m)?.[0] ?? "";
+    const lockCard = css.match(/^\.lock \.card \{[^}]+\}/m)?.[0] ?? "";
+    expect(authCard).toBe(".auth .card { width: min(400px, 100%); padding: 28px; }");
+    expect(lockCard).toBe(".lock .card { padding: 28px; width: min(400px, 100%); text-align: left; }");
+    expect(authCard).not.toMatch(/backdrop-filter|background:/);
+    expect(lockCard).not.toMatch(/backdrop-filter|background:/);
+    expect(css).toMatch(/--glass-blur:\s*blur\(22px\)/);
     expect(css).toMatch(/\.chrome \{[\s\S]*?backdrop-filter: var\(--glass-blur\)/);
-    expect(css).toMatch(/\.fab, \.fab-item \{[\s\S]*?backdrop-filter:/);
-    expect(css).toMatch(/\.btn \{[\s\S]*?backdrop-filter:/);
+    expect(css).toMatch(/\.fab, \.fab-item \{[\s\S]*?blur\(16px\)/);
+    expect(css).toMatch(/\.boot-halo \{[\s\S]*?filter:\s*blur\(18px\)/);
+    expect(css).toMatch(/\.btn \{[\s\S]*?blur\(16px\)/);
     expect(css).toMatch(/\.tabs button \{[\s\S]*?backdrop-filter:/);
     expect(css).toMatch(/\.day-pill, \.time-pill \{[\s\S]*?backdrop-filter:/);
     expect(css).toMatch(/\.stepper button \{[\s\S]*?backdrop-filter:/);
     expect(css).toMatch(/\.toggle button \{[\s\S]*?backdrop-filter:/);
+    expect(css).toMatch(/\.field input, \.field select \{[\s\S]*?blur\(14px\)/);
+    expect(css).toMatch(/\.quick-log-btn \{[\s\S]*?blur\(12px\)/);
+    expect(css).toMatch(/\.expand-btn \{[\s\S]*?blur\(12px\)/);
+    expect(css).toMatch(/\.cal-nav button \{[\s\S]*?blur\(12px\)/);
+    expect(css).toMatch(/\.calc-row input,\s*\n\.calc-row select \{[\s\S]*?blur\(14px\)/);
+    expect(css).toMatch(/\.reduce-effects \.card,/);
+    expect(css).toMatch(/\.reduce-effects \.chrome,[\s\S]*?backdrop-filter: none/);
   });
 
   it("keeps a designed boot screen on first paint and while session is pending", () => {
