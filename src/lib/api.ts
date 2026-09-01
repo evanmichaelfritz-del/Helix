@@ -82,7 +82,6 @@ export const client = {
       schedule?: import("@shared/types.ts").PeptideSchedule;
     },
   ) => api<{ peptide: import("@shared/types.ts").Peptide }>(`/api/peptides/${id}`, { method: "PATCH", json: body }),
-  deletePeptide: (id: string) => api<{ ok: true }>(`/api/peptides/${id}`, { method: "DELETE" }),
   vials: () =>
     api<{
       vials: Array<
@@ -99,6 +98,7 @@ export const client = {
     dose: number;
     remainingAmount?: number;
   }) => api("/api/vials", { method: "POST", json: body }),
+  deleteVial: (id: string) => api<{ ok: true }>(`/api/vials/${id}`, { method: "DELETE" }),
   doses: (on?: string) =>
     api<{ doses: import("@shared/types.ts").Dose[] }>(`/api/doses${on ? `?on=${on}` : ""}`),
   logDose: (body: {

@@ -180,3 +180,13 @@ vialRoutes.post(
     return c.json({ vial: { ...vial, remainingInjections: left, runwayTone: runwayTone(left) } }, 201);
   },
 );
+
+vialRoutes.delete("/:id", async (c) => {
+  const user = requireUser(c);
+  const db = c.get("db");
+  const id = c.req.param("id");
+  const row = await db.get<VialRow>("SELECT * FROM vials WHERE id = ? AND user_id = ?", [id, user.id]);
+  if (!row) return c.json({ error: "Vial not found." }, 404);
+  await db.run("DELETE FROM vials WHERE id = ? AND user_id = ?", [id, user.id]);
+  return c.json({ ok: true });
+});
