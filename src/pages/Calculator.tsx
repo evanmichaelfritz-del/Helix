@@ -15,7 +15,6 @@ import {
   parsePositive,
   SYRINGE_UNITS,
   syringeTicks,
-  vialAmountToMg,
   WATER_UNITS,
   waterToMl,
   type DoseUnit,
@@ -23,7 +22,6 @@ import {
   type WaterUnit,
 } from "@shared/peptide-calc.ts";
 import { cn } from "@shared/cn.ts";
-import { useAppState } from "../lib/state.tsx";
 
 type PeptideRow = {
   key: string;
@@ -60,21 +58,11 @@ export function CalculatorPage() {
 }
 
 function DrawCalc() {
-  const { peptides, vials } = useAppState();
   const [syringe, setSyringe] = useState<SyringeUnits>(30);
   const [rows, setRows] = useState<PeptideRow[]>(() => [newRow()]);
   const [water, setWater] = useState("5");
   const [waterUnit, setWaterUnit] = useState<WaterUnit>("ml");
   const [doseUnit, setDoseUnit] = useState<DoseUnit>("mcg");
-  const [fromVial, setFromVial] = useState("");
-
-  const usableVials = vials.flatMap((vial) => {
-    const peptide = peptides.find((p) => p.id === vial.peptideId);
-    if (!peptide) return [];
-    const mg = vialAmountToMg({ unit: peptide.unit, amount: vial.totalAmount });
-    if (mg == null) return [];
-    return [{ vial, peptide, mg }];
-  });
 
   const result = useMemo(() => {
     const waterMl = parsePositive(water);
@@ -95,21 +83,6 @@ function DrawCalc() {
   function addRow() {
     if (rows.length >= MAX_CALC_PEPTIDES) return;
     setRows((cur) => [...cur, newRow({ mg: "5", dose: doseUnit === "mg" ? "0.25" : "250" })]);
-  }
-
-  function fillFromVial(id: string) {
-    setFromVial(id);
-    const picked = usableVials.find((row) => row.vial.id === id);
-    if (!picked) return;
-    const nextDoseUnit: DoseUnit = picked.peptide.unit === "mg" ? "mg" : "mcg";
-    const doseAmt = picked.peptide.lastAmount ?? picked.vial.dose;
-    setDoseUnit(nextDoseUnit);
-    setRows([
-      newRow({
-        mg: formatMl(picked.mg),
-        dose: String(doseAmt),
-      }),
-    ]);
   }
 
   function switchWater(next: WaterUnit) {
@@ -136,21 +109,6 @@ function DrawCalc() {
 
   return (
     <div className="stack">
-      {usableVials.length > 0 ? (
-        <label className="field">
-          <span>From a vial</span>
-          <select value={fromVial} onChange={(e) => fillFromVial(e.target.value)}>
-            <option value="">Leave blank</option>
-            {usableVials.map((row) => (
-              <option key={row.vial.id} value={row.vial.id}>
-                {row.peptide.name}
-                {row.vial.label ? ` · ${row.vial.label}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-
       <div className="field">
         <span>Syringe</span>
         <div className="day-pills">
