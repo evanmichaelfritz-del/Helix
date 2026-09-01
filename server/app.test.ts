@@ -729,6 +729,18 @@ describe("design scaffold locks", () => {
     expect(css).toMatch(/#1414181a/);
     expect(css).not.toMatch(/\.page\s*\{[^}]*padding:\s*88px 16px 168px/);
     expect(css).toMatch(/\.helix-main/);
+    const card = css.match(/^\.card \{[^}]+\}/m)?.[0] ?? "";
+    expect(card).toMatch(/background:\s*var\(--solid\)/);
+    expect(card).not.toMatch(/backdrop-filter/);
+    expect(css).toMatch(/\.auth \.card \{ width: min\(400px, 100%\); padding: 28px; \}/);
+    expect(css).toMatch(/\.lock \.card \{ padding: 28px; width: min\(400px, 100%\); text-align: left; \}/);
+    expect(css).toMatch(/\.chrome \{[\s\S]*?backdrop-filter: var\(--glass-blur\)/);
+    expect(css).toMatch(/\.fab, \.fab-item \{[\s\S]*?backdrop-filter:/);
+    expect(css).toMatch(/\.btn \{[\s\S]*?backdrop-filter:/);
+    expect(css).toMatch(/\.tabs button \{[\s\S]*?backdrop-filter:/);
+    expect(css).toMatch(/\.day-pill, \.time-pill \{[\s\S]*?backdrop-filter:/);
+    expect(css).toMatch(/\.stepper button \{[\s\S]*?backdrop-filter:/);
+    expect(css).toMatch(/\.toggle button \{[\s\S]*?backdrop-filter:/);
   });
 
   it("keeps a designed boot screen on first paint and while session is pending", () => {
