@@ -834,7 +834,8 @@ describe("design scaffold locks", () => {
     expect(shell).toMatch(/to="\/health#sources"/);
     expect(shell).not.toMatch(/NavLink to="\/health#sources"/);
     expect(shell).toMatch(/<Link to="\/health#sources">\s*<IconCal \/>/);
-    expect(shell.match(/IconVitals/g)).toEqual(["IconVitals"]);
+    expect(shell).not.toMatch(/<Link to="\/health#sources">\s*<IconVitals/);
+    expect(shell.match(/<IconVitals/g)).toEqual(["<IconVitals"]);
     expect(vitals).toMatch(/function Liveline/);
     expect(vitals).toMatch(/function WeightLine/);
     expect(vitals).toMatch(/from \{formatWeight\(start\.kg/);
