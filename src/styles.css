@@ -30,7 +30,7 @@
   --font: "Sora", "Segoe UI", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   --radius: 20px;
-  --dock-h: calc(72px + env(safe-area-inset-bottom));
+  --dock-h: calc(10px + 72px + env(safe-area-inset-bottom));
   --rail: 232px;
 }
 
@@ -394,6 +394,7 @@ html.reduce-effects {
   border-radius: 24px 24px 0 0;
   padding: 10px 20px 28px;
   max-height: 88dvh;
+  background: var(--solid);
 }
 @media (min-width: 860px) {
   .sheet { border-radius: 24px; }
@@ -487,6 +488,18 @@ html.reduce-effects {
 }
 .btn:hover { background: color-mix(in srgb, var(--primary) 88%, transparent); }
 .btn.ghost:hover { background: var(--glass-strong); }
+.sheet .btn,
+.sheet .btn:hover {
+  background: var(--primary);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.sheet .btn.ghost,
+.sheet .btn.ghost:hover {
+  background: var(--solid-2);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 .btn:active, .btn.is-pressing { transform: scale(0.9); }
 .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
 .row-btns { display: grid; gap: 8px; margin-top: 8px; }
@@ -774,9 +787,12 @@ html.light .theme-overlay-backdrop {
   background: rgba(40, 36, 30, 0.22);
 }
 .theme-overlay {
-  width: min(480px, calc(100vw - 48px));
+  width: min(480px, 100%);
+  max-width: 100%;
+  min-width: 0;
   padding: 22px 22px 18px;
-  overflow: visible;
+  overflow-x: hidden;
+  background: var(--solid);
   animation: theme-overlay-in 0.32s var(--spring);
 }
 .theme-overlay-head {
@@ -800,9 +816,10 @@ html.light .theme-overlay-backdrop {
 .theme-overlay .muted { margin: 2px 0 16px; }
 .theme-picks {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 20px;
+  min-width: 0;
 }
 .theme-pick {
   display: grid;
@@ -813,6 +830,7 @@ html.light .theme-overlay-backdrop {
   border-radius: 16px;
   background: transparent;
   color: var(--text);
+  min-width: 0;
   min-height: 108px;
 }
 .theme-pick.on {
@@ -830,6 +848,7 @@ html.light .theme-overlay-backdrop {
   display: grid;
   grid-template-columns: 22% 1fr;
   width: 100%;
+  min-width: 0;
   height: 72px;
   border-radius: 10px;
   overflow: hidden;
@@ -1077,6 +1096,7 @@ html:not(.light) .theme-mini-system {
   gap: 8px;
   margin-bottom: 8px;
   min-width: 0;
+  overflow-x: hidden;
 }
 .calc-row input,
 .calc-row select {

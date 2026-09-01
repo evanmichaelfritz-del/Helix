@@ -59,7 +59,7 @@ export function ThemeOverlay(props: {
                 onClick={() => setDraft(card.value)}
               >
                 <ThemeMini pref={card.value} />
-                <span className="theme-pick-label">{on ? card.label : ""}</span>
+                <span className="theme-pick-label">{card.label}</span>
               </button>
             );
           })}

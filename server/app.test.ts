@@ -760,6 +760,20 @@ describe("design scaffold locks", () => {
     expect(css).toMatch(/\.calc-row input,\s*\n\.calc-row select \{[\s\S]*?blur\(14px\)/);
     expect(css).toMatch(/\.reduce-effects \.card,/);
     expect(css).toMatch(/\.reduce-effects \.chrome,[\s\S]*?backdrop-filter: none/);
+    expect(css).toMatch(/--dock-h:\s*calc\(10px \+ 72px \+ env\(safe-area-inset-bottom\)\)/);
+    expect(css).toMatch(/\.helix-main \{[\s\S]*?padding: 28px 0 calc\(var\(--dock-h\) \+ 16px\)/);
+    expect(css).toMatch(/@media \(min-width:\s*860px\) \{[\s\S]*?\.dock \{ display: none; \}[\s\S]*?\.rail \{ display: flex; \}/);
+    const overlay = css.match(/^\.theme-overlay \{[^}]+\}/m)?.[0] ?? "";
+    expect(overlay).toMatch(/background:\s*var\(--solid\)/);
+    expect(overlay).not.toMatch(/backdrop-filter/);
+    expect(css).toMatch(/\.theme-picks \{[\s\S]*?repeat\(3, minmax\(0, 1fr\)\)/);
+    expect(readFileSync("src/components/ThemeOverlay.tsx", "utf8")).toMatch(/\{card\.label\}/);
+    expect(readFileSync("src/components/ThemeOverlay.tsx", "utf8")).not.toMatch(/on \? card\.label/);
+    const sheet = css.match(/^\.sheet \{[^}]+\}/m)?.[0] ?? "";
+    expect(sheet).toMatch(/background:\s*var\(--solid\)/);
+    expect(sheet).not.toMatch(/backdrop-filter/);
+    expect(css).toMatch(/\.sheet \.btn,[\s\S]*?background: var\(--primary\)/);
+    expect(css).toMatch(/\.sheet \.btn,[\s\S]*?backdrop-filter: none/);
   });
 
   it("keeps a designed boot screen on first paint and while session is pending", () => {
@@ -868,6 +882,7 @@ describe("design scaffold locks", () => {
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.stack \{ display: grid; gap: 12px; min-width: 0; \}/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.field \{ display: grid; gap: 6px; margin-bottom: 12px; min-width: 0; \}/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-row \{[\s\S]*?min-width:\s*0/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-row \{[\s\S]*?overflow-x:\s*hidden/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-row input \{ flex: 1 1 0; min-width: 0; \}/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe-line/);
