@@ -76,12 +76,11 @@ export function VialsPage() {
     }
   }
 
-  async function removePeptide(id: string) {
+  async function removeVial(id: string) {
     setSaving(id);
     try {
-      await client.deletePeptide(id);
-      setPeptides(peptides.filter((p) => p.id !== id));
-      setVials(vials.filter((v) => v.peptideId !== id));
+      await client.deleteVial(id);
+      setVials(vials.filter((v) => v.id !== id));
       setExpanded(null);
       setConfirmDelete(null);
       bump();
@@ -125,25 +124,25 @@ export function VialsPage() {
                     disabled={saving === peptide.id}
                     onChange={(schedule) => void saveSchedule(peptide, schedule)}
                   />
-                  {confirmDelete === peptide.id ? (
+                  {confirmDelete === vial.id ? (
                     <button
                       type="button"
                       className="btn"
                       style={{ marginTop: 14 }}
-                      disabled={saving === peptide.id}
-                      onClick={() => void removePeptide(peptide.id)}
+                      disabled={saving === vial.id}
+                      onClick={() => void removeVial(vial.id)}
                     >
-                      Delete {peptide.name}
+                      Delete this vial
                     </button>
                   ) : (
                     <button
                       type="button"
                       className="btn ghost"
                       style={{ marginTop: 14 }}
-                      disabled={saving === peptide.id}
-                      onClick={() => setConfirmDelete(peptide.id)}
+                      disabled={saving === vial.id}
+                      onClick={() => setConfirmDelete(vial.id)}
                     >
-                      Delete peptide
+                      Delete vial
                     </button>
                   )}
                 </div>

@@ -431,7 +431,7 @@ describe("doses", () => {
     expect(list.vials[0].remainingInjections).toBe(9);
   });
 
-  it("deletes a peptide and its vial", async () => {
+  it("deletes a used-up vial and keeps the peptide and its doses", async () => {
     const app = await testApp();
     const cookie = await signup(app);
     const headers = { Cookie: cookie, "Content-Type": "application/json" };
@@ -441,17 +441,29 @@ describe("doses", () => {
       body: JSON.stringify({ name: "BPC-157", unit: "mcg" }),
     });
     const peptide = ((await created.json()) as { peptide: { id: string } }).peptide;
-    await app.request("/api/vials", {
+    const vialRes = await app.request("/api/vials", {
       method: "POST",
       headers,
       body: JSON.stringify({ peptideId: peptide.id, totalAmount: 2500, dose: 250 }),
     });
-    const gone = await app.request(`/api/peptides/${peptide.id}`, { method: "DELETE", headers });
+    const vial = ((await vialRes.json()) as { vial: { id: string } }).vial;
+    await app.request("/api/doses", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ peptideId: peptide.id, amount: 250, loggedOn: "2026-08-26" }),
+    });
+    const gone = await app.request(`/api/vials/${vial.id}`, { method: "DELETE", headers });
     expect(gone.status).toBe(200);
     const peptides = await app.request("/api/peptides", { headers });
-    expect(((await peptides.json()) as { peptides: unknown[] }).peptides).toEqual([]);
+    const names = ((await peptides.json()) as { peptides: Array<{ name: string }> }).peptides.map((p) => p.name);
+    expect(names).toEqual(["BPC-157"]);
     const vials = await app.request("/api/vials", { headers });
     expect(((await vials.json()) as { vials: unknown[] }).vials).toEqual([]);
+    const doses = await app.request("/api/doses", { headers });
+    const logged = ((await doses.json()) as { doses: Array<{ peptideId: string; amount: number }> }).doses;
+    expect(logged).toHaveLength(1);
+    expect(logged[0]?.peptideId).toBe(peptide.id);
+    expect(logged[0]?.amount).toBe(250);
   });
 });
 
@@ -745,8 +757,10 @@ describe("design scaffold locks", () => {
     expect(protocol).toMatch(/remainingLine/);
     expect(protocol).toMatch(/remainingInjections/);
     expect(protocol).not.toMatch(/remainingAmount\} remaining/);
-    expect(protocol).toMatch(/Delete peptide/);
-    expect(readFileSync("src/lib/api.ts", "utf8")).toMatch(/deletePeptide/);
+    expect(protocol).toMatch(/Delete vial/);
+    expect(protocol).not.toMatch(/Delete peptide/);
+    expect(readFileSync("src/lib/api.ts", "utf8")).toMatch(/deleteVial/);
+    expect(readFileSync("src/lib/api.ts", "utf8")).not.toMatch(/deletePeptide/);
   });
 });
 
