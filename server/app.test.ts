@@ -885,7 +885,9 @@ describe("design scaffold locks", () => {
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.field \{ display: grid; gap: 6px; margin-bottom: 12px; min-width: 0; \}/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-row \{[\s\S]*?min-width:\s*0/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-row \{[\s\S]*?overflow-x:\s*hidden/);
-    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-row input \{ flex: 1 1 0; min-width: 0; \}/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-row input \{ flex: 1 1 0; min-width: 0; width: 0; \}/);
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-row select \{[\s\S]*?flex: 0 0 auto[\s\S]*?max-width: none/);
+    expect(readFileSync("src/styles.css", "utf8")).not.toMatch(/\.calc-row select \{[^}]*max-width:\s*100%/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe/);
     expect(readFileSync("src/styles.css", "utf8")).toMatch(/\.calc-syringe-line/);
     expect(readFileSync("src/pages/Calculator.tsx", "utf8")).toMatch(/syringeUnitMarks/);

@@ -1100,6 +1100,7 @@ html:not(.light) .theme-mini-system {
   gap: 8px;
   margin-bottom: 8px;
   min-width: 0;
+  width: 100%;
   overflow-x: hidden;
 }
 .calc-row input,
@@ -1112,9 +1113,15 @@ html:not(.light) .theme-mini-system {
   padding: 12px;
   box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.18);
 }
-.calc-row input { flex: 1 1 0; min-width: 0; }
-.calc-row select { width: 88px; flex: 0 0 auto; max-width: 100%; }
-.calc-row > .muted:first-child { width: 72px; flex: 0 0 auto; }
+.calc-row input { flex: 1 1 0; min-width: 0; width: 0; }
+.calc-row select {
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: 5.5rem;
+  max-width: none;
+}
+.calc-row > .muted { flex: 0 0 auto; }
+.calc-row > .muted:first-child { width: 72px; }
 .calc-remove {
   width: 36px;
   height: 36px;
