@@ -1,7 +1,7 @@
 export const GLASS_PRESS_CLASS = "is-pressing";
 export const GLASS_RIPPLE_CLASS = "is-rippling";
 export const GLASS_PRESS_HOLD_MS = 320;
-export const GLASS_RIPPLE_MS = 280;
+export const GLASS_RIPPLE_MS = 320;
 export const GLASS_PRESS_TARGETS = [
   ".btn",
   ".tabs button",
@@ -36,6 +36,28 @@ export function glassEffectsReduced(
   }
 }
 
+export function rippleOrigin(
+  el: { getBoundingClientRect: () => { left: number; top: number; width: number; height: number } },
+  ev: Event,
+): { x: string; y: string } {
+  const point = ev as Event & { clientX?: number; clientY?: number };
+  if (typeof point.clientX !== "number" || typeof point.clientY !== "number") {
+    return { x: "50%", y: "50%" };
+  }
+  if (!Number.isFinite(point.clientX) || !Number.isFinite(point.clientY)) {
+    return { x: "50%", y: "50%" };
+  }
+  const r = el.getBoundingClientRect();
+  const w = r.width || 1;
+  const h = r.height || 1;
+  const x = ((point.clientX - r.left) / w) * 100;
+  const y = ((point.clientY - r.top) / h) * 100;
+  return {
+    x: `${Math.min(100, Math.max(0, x))}%`,
+    y: `${Math.min(100, Math.max(0, y))}%`,
+  };
+}
+
 function pressTarget(ev: Event): HTMLElement | null {
   if (ev instanceof MouseEvent && ev.button !== 0) return null;
   const raw = ev.target;
@@ -67,9 +89,12 @@ export function bindGlassPress(root: ParentNode = document): () => void {
     el.classList.remove(GLASS_RIPPLE_CLASS);
   }
 
-  function pulseRipple(el: HTMLElement): void {
+  function pulseRipple(el: HTMLElement, ev: Event): void {
     clearRipple(el);
     if (glassEffectsReduced()) return;
+    const origin = rippleOrigin(el, ev);
+    el.style.setProperty("--ripple-x", origin.x);
+    el.style.setProperty("--ripple-y", origin.y);
     void el.offsetWidth;
     el.classList.add(GLASS_RIPPLE_CLASS);
     const id = window.setTimeout(() => {
@@ -85,7 +110,7 @@ export function bindGlassPress(root: ParentNode = document): () => void {
     clearTimer(el);
     el.classList.add(GLASS_PRESS_CLASS);
     startedAt.set(el, Date.now());
-    pulseRipple(el);
+    pulseRipple(el, ev);
   }
 
   function onUp(ev: Event): void {
@@ -108,7 +133,7 @@ export function bindGlassPress(root: ParentNode = document): () => void {
     if (!el.classList.contains(GLASS_PRESS_CLASS)) {
       el.classList.add(GLASS_PRESS_CLASS);
       startedAt.set(el, Date.now());
-      pulseRipple(el);
+      pulseRipple(el, ev);
     }
     onUp(ev);
   }
