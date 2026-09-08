@@ -5,6 +5,7 @@ import {
   GLASS_PRESS_HOLD_MS,
   GLASS_PRESS_SELECTOR,
   GLASS_PRESS_TARGETS,
+  GLASS_RIPPLE_ACCENT_PCT,
   GLASS_RIPPLE_CLASS,
   GLASS_RIPPLE_MS,
   glassEffectsReduced,
@@ -34,8 +35,12 @@ describe("glass-press lock", () => {
     expect(GLASS_PRESS_CLASS).toBe("is-pressing");
     expect(GLASS_RIPPLE_CLASS).toBe("is-rippling");
     expect(GLASS_PRESS_HOLD_MS).toBe(320);
+    expect(GLASS_RIPPLE_MS).toBe(320);
     expect(GLASS_RIPPLE_MS).toBeGreaterThanOrEqual(280);
     expect(GLASS_RIPPLE_MS).toBeLessThanOrEqual(400);
+    expect(GLASS_RIPPLE_ACCENT_PCT).toBeGreaterThanOrEqual(30);
+    expect(GLASS_RIPPLE_ACCENT_PCT).toBeLessThanOrEqual(40);
+    expect(GLASS_RIPPLE_ACCENT_PCT).toBe(36);
   });
 
   it("skips ripple when html.reduce-effects or prefers-reduced-motion", () => {
@@ -70,10 +75,12 @@ describe("glass-press lock", () => {
     expect(css).toMatch(/@keyframes glass-mint-fill/);
     expect(css).toMatch(new RegExp(`animation: glass-ripple ${GLASS_RIPPLE_MS}ms ease-out`));
     expect(css).toMatch(new RegExp(`animation: glass-mint-fill ${GLASS_RIPPLE_MS}ms ease-out`));
-    expect(css).toMatch(/\.tabs button \{[\s\S]*?background 0\.32s ease-out/);
+    expect(css).toMatch(/\.tabs button \{[\s\S]*?background 320ms ease-out/);
     expect(css).toMatch(/\.tabs button \{[\s\S]*?background: var\(--glass\)/);
     expect(css).not.toMatch(/glass-ripple 1[0-9]{3,}ms|glass-mint-fill 1[0-9]{3,}ms|1\.5s/);
-    expect(css).toMatch(/color-mix\(in srgb, var\(--accent\) 36%, transparent\)/);
+    expect(css).toMatch(
+      new RegExp(`color-mix\\(in srgb, var\\(--accent\\) ${GLASS_RIPPLE_ACCENT_PCT}%, transparent\\)`),
+    );
     expect(css).toMatch(/circle at var\(--ripple-x, 50%\) var\(--ripple-y, 50%\)/);
     expect(css).toMatch(/\.reduce-effects \.is-rippling::before \{[\s\S]*?animation: none/);
     expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*?\.is-rippling::before \{[\s\S]*?animation: none/);

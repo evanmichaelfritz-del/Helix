@@ -146,7 +146,7 @@ html.reduce-effects {
 .reduce-effects .toggle button.on,
 .reduce-effects .toggle button.active,
 .reduce-effects .toggle button[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--accent) 34%, var(--solid));
+  background: color-mix(in srgb, var(--accent) 36%, var(--solid));
   color: var(--text);
   box-shadow: none;
 }
@@ -546,7 +546,7 @@ html.reduce-effects {
   box-shadow:
     var(--glass-inset),
     0 8px 22px color-mix(in srgb, var(--accent) 24%, transparent);
-  transition: transform 0.28s var(--spring), box-shadow 0.28s var(--spring), background 0.32s ease-out;
+  transition: transform 0.28s var(--spring), box-shadow 0.28s var(--spring), background 320ms ease-out;
 }
 .btn.ghost {
   background: var(--glass);
@@ -639,7 +639,7 @@ html.reduce-effects {
   border-radius: 14px;
   padding: 10px;
   box-shadow: var(--glass-inset);
-  transition: transform 0.28s var(--spring), background 0.32s ease-out, color 0.32s ease-out, box-shadow 0.32s ease-out, border-color 0.32s ease-out;
+  transition: transform 0.28s var(--spring), background 320ms ease-out, color 320ms ease-out, box-shadow 320ms ease-out, border-color 320ms ease-out;
 }
 .tabs button.on,
 .tabs button.active,
@@ -647,7 +647,7 @@ html.reduce-effects {
   background-color: color-mix(in srgb, var(--accent-dim) 80%, var(--glass));
   background-image: radial-gradient(
     circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
-    color-mix(in srgb, var(--accent) 38%, var(--glass)) 0%,
+    color-mix(in srgb, var(--accent) 36%, var(--glass)) 0%,
     color-mix(in srgb, var(--accent-dim) 70%, var(--glass)) 100%
   );
   background-repeat: no-repeat;
@@ -781,7 +781,7 @@ html.reduce-effects {
   font-size: 13px;
   font-weight: 600;
   box-shadow: var(--glass-inset);
-  transition: transform 0.28s var(--spring), background 0.32s ease-out, color 0.32s ease-out, box-shadow 0.32s ease-out, border-color 0.32s ease-out;
+  transition: transform 0.28s var(--spring), background 320ms ease-out, color 320ms ease-out, box-shadow 320ms ease-out, border-color 320ms ease-out;
 }
 .day-pill.on, .time-pill.on,
 .day-pill.active, .time-pill.active,
@@ -789,7 +789,7 @@ html.reduce-effects {
   background-color: color-mix(in srgb, var(--accent-dim) 80%, var(--glass));
   background-image: radial-gradient(
     circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
-    color-mix(in srgb, var(--accent) 38%, var(--glass)) 0%,
+    color-mix(in srgb, var(--accent) 36%, var(--glass)) 0%,
     color-mix(in srgb, var(--accent-dim) 70%, var(--glass)) 100%
   );
   background-repeat: no-repeat;
@@ -836,7 +836,7 @@ html.reduce-effects {
   -webkit-backdrop-filter: blur(16px) saturate(1.45);
   position: relative;
   box-shadow: var(--glass-inset), 0 6px 16px var(--glass-shade);
-  transition: background 0.32s ease-out, border-color 0.32s ease-out, transform 0.28s var(--spring);
+  transition: background 320ms ease-out, border-color 320ms ease-out, transform 0.28s var(--spring);
 }
 .toggle button.on,
 .toggle button.active,
@@ -844,7 +844,7 @@ html.reduce-effects {
   background-color: color-mix(in srgb, var(--accent) 28%, var(--glass));
   background-image: radial-gradient(
     circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
-    color-mix(in srgb, var(--accent) 40%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 36%, transparent) 0%,
     color-mix(in srgb, var(--accent) 22%, var(--glass)) 100%
   );
   background-repeat: no-repeat;
@@ -949,7 +949,7 @@ html.light .theme-overlay-backdrop {
   color: var(--text);
   min-width: 0;
   min-height: 108px;
-  transition: transform 0.28s var(--spring), background 0.32s ease-out, border-color 0.32s ease-out;
+  transition: transform 0.28s var(--spring), background 320ms ease-out, border-color 320ms ease-out;
 }
 .theme-pick.on,
 .theme-pick.active,
@@ -959,7 +959,7 @@ html.light .theme-overlay-backdrop {
   background-color: transparent;
   background-image: radial-gradient(
     circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
-    color-mix(in srgb, var(--accent) 32%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 36%, transparent) 0%,
     color-mix(in srgb, var(--accent-dim) 70%, transparent) 100%
   );
   background-repeat: no-repeat;

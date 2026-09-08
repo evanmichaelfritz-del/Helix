@@ -2,6 +2,7 @@ export const GLASS_PRESS_CLASS = "is-pressing";
 export const GLASS_RIPPLE_CLASS = "is-rippling";
 export const GLASS_PRESS_HOLD_MS = 320;
 export const GLASS_RIPPLE_MS = 320;
+export const GLASS_RIPPLE_ACCENT_PCT = 36;
 export const GLASS_PRESS_TARGETS = [
   ".btn",
   ".tabs button",
