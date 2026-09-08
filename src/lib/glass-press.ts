@@ -6,6 +6,7 @@ export const GLASS_RIPPLE_ACCENT_PCT = 36;
 export const GLASS_PRESS_TARGETS = [
   ".btn",
   ".tabs button",
+  ".subnav a",
   ".toggle button",
   ".quick-log-btn",
   ".expand-btn",
