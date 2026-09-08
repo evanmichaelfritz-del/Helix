@@ -135,18 +135,23 @@ html.reduce-effects {
   background: var(--solid);
 }
 .reduce-effects .tabs button.on,
+.reduce-effects .tabs button.active,
 .reduce-effects .tabs button[aria-pressed="true"],
 .reduce-effects .day-pill.on,
+.reduce-effects .day-pill.active,
 .reduce-effects .day-pill[aria-pressed="true"],
 .reduce-effects .time-pill.on,
+.reduce-effects .time-pill.active,
 .reduce-effects .time-pill[aria-pressed="true"],
 .reduce-effects .toggle button.on,
+.reduce-effects .toggle button.active,
 .reduce-effects .toggle button[aria-pressed="true"] {
   background: color-mix(in srgb, var(--accent) 34%, var(--solid));
   color: var(--text);
   box-shadow: none;
 }
 .reduce-effects .theme-pick.on,
+.reduce-effects .theme-pick.active,
 .reduce-effects .theme-pick[aria-checked="true"] {
   background: color-mix(in srgb, var(--accent) 22%, var(--solid));
   border-color: var(--accent);
@@ -637,6 +642,7 @@ html.reduce-effects {
   transition: transform 0.28s var(--spring), background 0.32s ease-out, color 0.32s ease-out, box-shadow 0.32s ease-out, border-color 0.32s ease-out;
 }
 .tabs button.on,
+.tabs button.active,
 .tabs button[aria-pressed="true"] {
   background-color: color-mix(in srgb, var(--accent-dim) 80%, var(--glass));
   background-image: radial-gradient(
@@ -778,6 +784,7 @@ html.reduce-effects {
   transition: transform 0.28s var(--spring), background 0.32s ease-out, color 0.32s ease-out, box-shadow 0.32s ease-out, border-color 0.32s ease-out;
 }
 .day-pill.on, .time-pill.on,
+.day-pill.active, .time-pill.active,
 .day-pill[aria-pressed="true"], .time-pill[aria-pressed="true"] {
   background-color: color-mix(in srgb, var(--accent-dim) 80%, var(--glass));
   background-image: radial-gradient(
@@ -832,6 +839,7 @@ html.reduce-effects {
   transition: background 0.32s ease-out, border-color 0.32s ease-out, transform 0.28s var(--spring);
 }
 .toggle button.on,
+.toggle button.active,
 .toggle button[aria-pressed="true"] {
   background-color: color-mix(in srgb, var(--accent) 28%, var(--glass));
   background-image: radial-gradient(
@@ -944,6 +952,7 @@ html.light .theme-overlay-backdrop {
   transition: transform 0.28s var(--spring), background 0.32s ease-out, border-color 0.32s ease-out;
 }
 .theme-pick.on,
+.theme-pick.active,
 .theme-pick[aria-checked="true"],
 .theme-pick[aria-pressed="true"] {
   border-color: color-mix(in srgb, var(--accent) 50%, var(--glass-edge));
@@ -1637,14 +1646,19 @@ html.light .boot {
   animation: glass-ripple 320ms ease-out;
 }
 .tabs button.on.is-rippling,
+.tabs button.active.is-rippling,
 .tabs button[aria-pressed="true"].is-rippling,
 .day-pill.on.is-rippling,
+.day-pill.active.is-rippling,
 .day-pill[aria-pressed="true"].is-rippling,
 .time-pill.on.is-rippling,
+.time-pill.active.is-rippling,
 .time-pill[aria-pressed="true"].is-rippling,
 .toggle button.on.is-rippling,
+.toggle button.active.is-rippling,
 .toggle button[aria-pressed="true"].is-rippling,
 .theme-pick.on.is-rippling,
+.theme-pick.active.is-rippling,
 .theme-pick[aria-checked="true"].is-rippling {
   animation: glass-mint-fill 320ms ease-out;
 }
@@ -1706,10 +1720,15 @@ html.light .boot {
     content: none;
   }
   .tabs button.on.is-rippling,
+  .tabs button.active.is-rippling,
   .day-pill.on.is-rippling,
+  .day-pill.active.is-rippling,
   .time-pill.on.is-rippling,
+  .time-pill.active.is-rippling,
   .toggle button.on.is-rippling,
-  .theme-pick.on.is-rippling {
+  .toggle button.active.is-rippling,
+  .theme-pick.on.is-rippling,
+  .theme-pick.active.is-rippling {
     animation: none;
   }
   .theme-overlay { animation: none; }

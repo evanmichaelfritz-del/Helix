@@ -75,7 +75,7 @@ describe("glass-press lock", () => {
     expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*?\.is-rippling::before \{[\s\S]*?animation: none/);
     expect(css).toMatch(/\.reduce-effects \.btn,[\s\S]*?background: var\(--primary\)/);
     expect(css).toMatch(/\.reduce-effects \.tabs button\.on,[\s\S]*?var\(--accent\)/);
-    expect(css).toMatch(/\.tabs button\.on,[\s\S]*?var\(--accent\)/);
+    expect(css).toMatch(/\.tabs button\.on,[\s\S]*?\.tabs button\.active,[\s\S]*?var\(--accent\)/);
     expect(css).toMatch(/\.day-pill\.on, \.time-pill\.on[\s\S]*?var\(--accent\)/);
     expect(css).toMatch(/\.toggle button\.on,[\s\S]*?var\(--accent\)/);
     expect(css).toMatch(/\.theme-pick\.on,[\s\S]*?var\(--accent\)/);
