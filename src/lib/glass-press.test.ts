@@ -15,6 +15,7 @@ import {
 const LOCKED_TARGETS = [
   ".btn",
   ".tabs button",
+  ".subnav a",
   ".toggle button",
   ".quick-log-btn",
   ".expand-btn",
@@ -77,6 +78,8 @@ describe("glass-press lock", () => {
     expect(css).toMatch(new RegExp(`animation: glass-mint-fill ${GLASS_RIPPLE_MS}ms ease-out`));
     expect(css).toMatch(/\.tabs button \{[\s\S]*?background 320ms ease-out/);
     expect(css).toMatch(/\.tabs button \{[\s\S]*?background: var\(--glass\)/);
+    expect(css).toMatch(/\.subnav a \{[\s\S]*?background 320ms ease-out/);
+    expect(css).toMatch(/\.subnav a \{[\s\S]*?background: var\(--glass\)/);
     expect(css).not.toMatch(/glass-ripple 1[0-9]{3,}ms|glass-mint-fill 1[0-9]{3,}ms|1\.5s/);
     expect(css).toMatch(
       new RegExp(`color-mix\\(in srgb, var\\(--accent\\) ${GLASS_RIPPLE_ACCENT_PCT}%, transparent\\)`),
@@ -86,7 +89,9 @@ describe("glass-press lock", () => {
     expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*?\.is-rippling::before \{[\s\S]*?animation: none/);
     expect(css).toMatch(/\.reduce-effects \.btn,[\s\S]*?background: var\(--primary\)/);
     expect(css).toMatch(/\.reduce-effects \.tabs button\.on,[\s\S]*?var\(--accent\)/);
+    expect(css).toMatch(/\.reduce-effects \.subnav a\.on,[\s\S]*?var\(--accent\)/);
     expect(css).toMatch(/\.tabs button\.on,[\s\S]*?\.tabs button\.active,[\s\S]*?var\(--accent\)/);
+    expect(css).toMatch(/\.subnav a\.on,[\s\S]*?\.subnav a\.active,[\s\S]*?var\(--accent\)/);
     expect(css).toMatch(/\.day-pill\.on, \.time-pill\.on[\s\S]*?var\(--accent\)/);
     expect(css).toMatch(/\.toggle button\.on,[\s\S]*?var\(--accent\)/);
     expect(css).toMatch(/\.theme-pick\.on,[\s\S]*?var\(--accent\)/);
