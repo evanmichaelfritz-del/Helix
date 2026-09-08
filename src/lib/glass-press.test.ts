@@ -79,6 +79,8 @@ describe("glass-press lock", () => {
     expect(css).toMatch(/\.tabs button \{[\s\S]*?background 320ms ease-out/);
     expect(css).toMatch(/\.tabs button \{[\s\S]*?background: var\(--glass\)/);
     expect(css).toMatch(/\.subnav a \{[\s\S]*?background 320ms ease-out/);
+    expect(css).toMatch(/\.subnav a \{[\s\S]*?color: var\(--muted\)/);
+    expect(css).toMatch(/\.subnav a \{[\s\S]*?border: 1px solid var\(--line\)/);
     expect(css).toMatch(/\.subnav a \{[\s\S]*?background: var\(--glass\)/);
     expect(css).not.toMatch(/glass-ripple 1[0-9]{3,}ms|glass-mint-fill 1[0-9]{3,}ms|1\.5s/);
     expect(css).toMatch(
