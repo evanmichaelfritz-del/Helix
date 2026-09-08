@@ -69,6 +69,10 @@ describe("glass-press lock", () => {
     expect(css).toMatch(/@keyframes glass-ripple/);
     expect(css).toMatch(/@keyframes glass-mint-fill/);
     expect(css).toMatch(new RegExp(`animation: glass-ripple ${GLASS_RIPPLE_MS}ms ease-out`));
+    expect(css).toMatch(new RegExp(`animation: glass-mint-fill ${GLASS_RIPPLE_MS}ms ease-out`));
+    expect(css).toMatch(/\.tabs button \{[\s\S]*?background 0\.32s ease-out/);
+    expect(css).toMatch(/\.tabs button \{[\s\S]*?background: var\(--glass\)/);
+    expect(css).not.toMatch(/glass-ripple 1[0-9]{3,}ms|glass-mint-fill 1[0-9]{3,}ms|1\.5s/);
     expect(css).toMatch(/color-mix\(in srgb, var\(--accent\) 36%, transparent\)/);
     expect(css).toMatch(/circle at var\(--ripple-x, 50%\) var\(--ripple-y, 50%\)/);
     expect(css).toMatch(/\.reduce-effects \.is-rippling::before \{[\s\S]*?animation: none/);
