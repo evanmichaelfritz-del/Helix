@@ -94,6 +94,7 @@ describe("glass-press lock", () => {
     expect(css).toMatch(/\.reduce-effects \.subnav a\.on,[\s\S]*?var\(--accent\)/);
     expect(css).toMatch(/\.tabs button\.on,[\s\S]*?\.tabs button\.active,[\s\S]*?var\(--accent\)/);
     expect(css).toMatch(/\.subnav a\.on,[\s\S]*?\.subnav a\.active,[\s\S]*?var\(--accent\)/);
+    expect(css).toMatch(/\.subnav a\.on,[\s\S]*?\.subnav a\.active,[\s\S]*?var\(--glass-inset\)/);
     expect(css).toMatch(/\.day-pill\.on, \.time-pill\.on[\s\S]*?var\(--accent\)/);
     expect(css).toMatch(/\.toggle button\.on,[\s\S]*?var\(--accent\)/);
     expect(css).toMatch(/\.theme-pick\.on,[\s\S]*?var\(--accent\)/);
