@@ -20,11 +20,16 @@
   --glass-chrome-highlight: rgba(255, 255, 255, 0.12);
   --glass: rgba(255, 255, 255, 0.08);
   --glass-strong: rgba(255, 255, 255, 0.14);
-  --glass-edge: rgba(255, 255, 255, 0.38);
+  --glass-edge: rgba(255, 255, 255, 0.52);
   --glass-shade: rgba(0, 0, 0, 0.28);
-  --glass-inset: inset 1px 1px 0 rgba(255, 255, 255, 0.42), inset -1px -1px 1px rgba(0, 0, 0, 0.28);
+  --glass-inset:
+    inset 0 2px 0 rgba(255, 255, 255, 0.7),
+    inset 2px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.4),
+    inset -2px 0 2px rgba(0, 0, 0, 0.24);
   --glass-float: 0 10px 28px rgba(0, 0, 0, 0.28);
   --glass-blur: blur(22px) saturate(1.6);
+  --glass-press-scale: 0.96;
   --spring: cubic-bezier(0.34, 1.36, 0.64, 1);
   --ring: rgba(126, 224, 200, 0.55);
   --font: "Sora", "Segoe UI", system-ui, sans-serif;
@@ -49,9 +54,13 @@ html.light {
   --glass-chrome-highlight: rgba(255, 255, 255, 0.85);
   --glass: rgba(255, 255, 255, 0.46);
   --glass-strong: rgba(255, 255, 255, 0.62);
-  --glass-edge: rgba(255, 255, 255, 0.88);
+  --glass-edge: rgba(255, 255, 255, 0.94);
   --glass-shade: rgba(20, 20, 24, 0.08);
-  --glass-inset: inset 1px 1px 0 rgba(255, 255, 255, 0.95), inset -1px -1px 2px rgba(20, 20, 24, 0.08);
+  --glass-inset:
+    inset 0 2px 0 rgba(255, 255, 255, 1),
+    inset 2px 0 0 rgba(255, 255, 255, 0.88),
+    inset 0 -2px 3px rgba(20, 20, 24, 0.16),
+    inset -2px 0 2px rgba(20, 20, 24, 0.1);
   --glass-float: 0 10px 24px rgba(40, 36, 30, 0.1);
   --ring: rgba(16, 120, 98, 0.45);
 }
@@ -80,6 +89,7 @@ a { color: inherit; }
 .reduce-effects body,
 html.reduce-effects {
   background: var(--bg);
+  --glass-press-scale: 1;
 }
 .reduce-effects .chrome,
 .reduce-effects .btn,
@@ -89,16 +99,66 @@ html.reduce-effects {
 .reduce-effects .card,
 .reduce-effects .tabs button,
 .reduce-effects .fab,
+.reduce-effects .fab-item,
 .reduce-effects .quick-log-btn,
 .reduce-effects .expand-btn,
 .reduce-effects .day-pill,
-.reduce-effects .time-pill {
+.reduce-effects .time-pill,
+.reduce-effects .stepper button,
+.reduce-effects .cal-nav button,
+.reduce-effects .theme-open,
+.reduce-effects .theme-pick {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 .reduce-effects .chrome,
 .reduce-effects .card {
   background: var(--solid);
+}
+.reduce-effects .btn,
+.reduce-effects .fab,
+.reduce-effects .fab-item,
+.reduce-effects .quick-log-btn {
+  background: var(--primary);
+}
+.reduce-effects .btn.ghost,
+.reduce-effects .tabs button,
+.reduce-effects .expand-btn,
+.reduce-effects .day-pill,
+.reduce-effects .time-pill,
+.reduce-effects .stepper button,
+.reduce-effects .cal-nav button,
+.reduce-effects .toggle button,
+.reduce-effects .theme-open,
+.reduce-effects .theme-pick,
+.reduce-effects .quick-log-btn.done {
+  background: var(--solid);
+}
+.reduce-effects .tabs button.on,
+.reduce-effects .tabs button.active,
+.reduce-effects .tabs button[aria-pressed="true"],
+.reduce-effects .day-pill.on,
+.reduce-effects .day-pill.active,
+.reduce-effects .day-pill[aria-pressed="true"],
+.reduce-effects .time-pill.on,
+.reduce-effects .time-pill.active,
+.reduce-effects .time-pill[aria-pressed="true"],
+.reduce-effects .toggle button.on,
+.reduce-effects .toggle button.active,
+.reduce-effects .toggle button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 36%, var(--solid));
+  color: var(--text);
+  box-shadow: none;
+}
+.reduce-effects .theme-pick.on,
+.reduce-effects .theme-pick.active,
+.reduce-effects .theme-pick[aria-checked="true"] {
+  background: color-mix(in srgb, var(--accent) 22%, var(--solid));
+  border-color: var(--accent);
+}
+.reduce-effects .is-rippling::before {
+  animation: none;
+  content: none;
 }
 .reduce-effects * {
   transition: none !important;
@@ -358,7 +418,7 @@ html.reduce-effects {
   color: var(--primary-fg);
   font-weight: 600;
   box-shadow:
-    inset 1px 1px 0 rgba(255, 255, 255, 0.55),
+    var(--glass-inset),
     0 10px 24px color-mix(in srgb, var(--accent) 22%, transparent);
   transition: transform 0.28s var(--spring);
 }
@@ -382,7 +442,7 @@ html.reduce-effects {
   font-size: 13px;
 }
 .fab:active, .fab.is-pressing,
-.fab-item:active, .fab-item.is-pressing { transform: scale(0.9); }
+.fab-item:active, .fab-item.is-pressing { transform: scale(var(--glass-press-scale)); }
 
 .sheet-backdrop {
   position: fixed;
@@ -453,10 +513,10 @@ html.reduce-effects {
   -webkit-backdrop-filter: blur(14px) saturate(1.3);
   font-size: 22px;
   box-shadow: var(--glass-inset);
-  transition: transform 0.24s var(--spring);
+  transition: transform 0.28s var(--spring);
 }
 .stepper button:active,
-.stepper button.is-pressing { transform: scale(0.9); }
+.stepper button.is-pressing { transform: scale(var(--glass-press-scale)); }
 .stepper input {
   width: 120px;
   text-align: center;
@@ -484,10 +544,9 @@ html.reduce-effects {
   font-weight: 600;
   text-decoration: none;
   box-shadow:
-    inset 1px 1px 0 rgba(255, 255, 255, 0.55),
-    inset -1px -1px 2px rgba(0, 0, 0, 0.16),
+    var(--glass-inset),
     0 8px 22px color-mix(in srgb, var(--accent) 24%, transparent);
-  transition: transform 0.28s var(--spring), box-shadow 0.28s var(--spring), background 0.2s ease;
+  transition: transform 0.28s var(--spring), box-shadow 0.28s var(--spring), background 320ms ease-out;
 }
 .btn.ghost {
   background: var(--glass);
@@ -509,7 +568,7 @@ html.reduce-effects {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-.btn:active, .btn.is-pressing { transform: scale(0.9); }
+.btn:active, .btn.is-pressing { transform: scale(var(--glass-press-scale)); }
 .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
 .row-btns { display: grid; gap: 8px; margin-top: 8px; }
 
@@ -579,15 +638,29 @@ html.reduce-effects {
   -webkit-backdrop-filter: blur(14px) saturate(1.3);
   border-radius: 14px;
   padding: 10px;
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.16);
-  transition: transform 0.24s var(--spring), background 0.2s ease;
+  box-shadow: var(--glass-inset);
+  transition: transform 0.28s var(--spring), background 320ms ease-out, color 320ms ease-out, box-shadow 320ms ease-out, border-color 320ms ease-out;
 }
-.tabs button.on {
-  background: color-mix(in srgb, var(--accent) 22%, var(--glass));
-  border-color: transparent;
+.tabs button.on,
+.tabs button.active,
+.tabs button[aria-pressed="true"] {
+  background-color: color-mix(in srgb, var(--accent-dim) 80%, var(--glass));
+  background-image: radial-gradient(
+    circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+    color-mix(in srgb, var(--accent) 36%, var(--glass)) 0%,
+    color-mix(in srgb, var(--accent-dim) 70%, var(--glass)) 100%
+  );
+  background-repeat: no-repeat;
+  background-position: var(--ripple-x, 50%) var(--ripple-y, 50%);
+  background-size: 240% 240%;
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--glass-edge));
+  color: var(--text);
+  box-shadow:
+    var(--glass-inset),
+    inset 0 0 16px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 .tabs button:active,
-.tabs button.is-pressing { transform: scale(0.88); }
+.tabs button.is-pressing { transform: scale(var(--glass-press-scale)); }
 
 .subnav {
   display: flex;
@@ -645,8 +718,8 @@ html.reduce-effects {
   font-weight: 600;
   line-height: 1;
   flex: 0 0 auto;
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.5);
-  transition: transform 0.24s var(--spring);
+  box-shadow: var(--glass-inset);
+  transition: transform 0.28s var(--spring);
 }
 .quick-log-btn.done {
   background: var(--glass);
@@ -656,7 +729,7 @@ html.reduce-effects {
   font-weight: 600;
 }
 .quick-log-btn:active,
-.quick-log-btn.is-pressing { transform: scale(0.9); }
+.quick-log-btn.is-pressing { transform: scale(var(--glass-press-scale)); }
 .quick-log-btn:disabled { opacity: 0.6; cursor: default; transform: none; }
 .vial-schedule-row .list-row { padding-bottom: 14px; }
 .expand-btn {
@@ -671,11 +744,11 @@ html.reduce-effects {
   -webkit-backdrop-filter: blur(12px);
   color: var(--muted);
   flex: 0 0 auto;
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.2);
-  transition: transform 0.24s var(--spring), color 0.15s ease;
+  box-shadow: var(--glass-inset);
+  transition: transform 0.28s var(--spring), color 0.15s ease;
 }
 .expand-btn:active,
-.expand-btn.is-pressing { transform: scale(0.9); }
+.expand-btn.is-pressing { transform: scale(var(--glass-press-scale)); }
 .expand-btn:hover { color: var(--text); }
 .chevron { transition: transform 0.15s ease; }
 .chevron.open { transform: rotate(180deg); }
@@ -707,16 +780,29 @@ html.reduce-effects {
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.22);
-  transition: transform 0.24s var(--spring), background 0.2s ease;
+  box-shadow: var(--glass-inset);
+  transition: transform 0.28s var(--spring), background 320ms ease-out, color 320ms ease-out, box-shadow 320ms ease-out, border-color 320ms ease-out;
 }
-.day-pill.on, .time-pill.on {
-  background: color-mix(in srgb, var(--accent) 22%, var(--glass));
-  border-color: transparent;
+.day-pill.on, .time-pill.on,
+.day-pill.active, .time-pill.active,
+.day-pill[aria-pressed="true"], .time-pill[aria-pressed="true"] {
+  background-color: color-mix(in srgb, var(--accent-dim) 80%, var(--glass));
+  background-image: radial-gradient(
+    circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+    color-mix(in srgb, var(--accent) 36%, var(--glass)) 0%,
+    color-mix(in srgb, var(--accent-dim) 70%, var(--glass)) 100%
+  );
+  background-repeat: no-repeat;
+  background-position: var(--ripple-x, 50%) var(--ripple-y, 50%);
+  background-size: 240% 240%;
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--glass-edge));
   color: var(--text);
+  box-shadow:
+    var(--glass-inset),
+    inset 0 0 16px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 .day-pill:active, .day-pill.is-pressing,
-.time-pill:active, .time-pill.is-pressing { transform: scale(0.92); }
+.time-pill:active, .time-pill.is-pressing { transform: scale(var(--glass-press-scale)); }
 .day-pill:disabled, .time-pill:disabled { opacity: 0.6; cursor: default; }
 .muted { color: var(--muted); font-size: 13px; }
 .error { color: var(--red); font-size: 13px; margin: 8px 0; }
@@ -750,11 +836,21 @@ html.reduce-effects {
   -webkit-backdrop-filter: blur(16px) saturate(1.45);
   position: relative;
   box-shadow: var(--glass-inset), 0 6px 16px var(--glass-shade);
-  transition: background 0.32s var(--spring), border-color 0.32s ease;
+  transition: background 320ms ease-out, border-color 320ms ease-out, transform 0.28s var(--spring);
 }
-.toggle button.on {
-  background: color-mix(in srgb, var(--accent) 62%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--glass-edge));
+.toggle button.on,
+.toggle button.active,
+.toggle button[aria-pressed="true"] {
+  background-color: color-mix(in srgb, var(--accent) 28%, var(--glass));
+  background-image: radial-gradient(
+    circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+    color-mix(in srgb, var(--accent) 36%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 22%, var(--glass)) 100%
+  );
+  background-repeat: no-repeat;
+  background-position: var(--ripple-x, 50%) var(--ripple-y, 50%);
+  background-size: 240% 240%;
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--glass-edge));
 }
 .toggle button i {
   position: absolute;
@@ -773,7 +869,7 @@ html.reduce-effects {
 }
 .toggle button.on i { left: 23px; }
 .toggle button:active,
-.toggle button.is-pressing { transform: scale(0.94); }
+.toggle button.is-pressing { transform: scale(var(--glass-press-scale)); }
 .toggle .theme-open {
   display: inline-flex;
   align-items: center;
@@ -786,12 +882,12 @@ html.reduce-effects {
   padding: 8px 12px;
   font-size: 14px;
   font-weight: 500;
-  position: static;
+  position: relative;
   background: var(--glass);
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.18);
+  box-shadow: var(--glass-inset);
 }
 .toggle .theme-open:active,
-.toggle .theme-open.is-pressing { transform: scale(0.96); }
+.toggle .theme-open.is-pressing { transform: scale(var(--glass-press-scale)); }
 
 .theme-overlay-backdrop {
   position: fixed;
@@ -853,12 +949,26 @@ html.light .theme-overlay-backdrop {
   color: var(--text);
   min-width: 0;
   min-height: 108px;
+  transition: transform 0.28s var(--spring), background 320ms ease-out, border-color 320ms ease-out;
 }
-.theme-pick.on {
-  border-color: var(--text);
+.theme-pick.on,
+.theme-pick.active,
+.theme-pick[aria-checked="true"],
+.theme-pick[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--glass-edge));
+  background-color: transparent;
+  background-image: radial-gradient(
+    circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+    color-mix(in srgb, var(--accent) 36%, transparent) 0%,
+    color-mix(in srgb, var(--accent-dim) 70%, transparent) 100%
+  );
+  background-repeat: no-repeat;
+  background-position: var(--ripple-x, 50%) var(--ripple-y, 50%);
+  background-size: 240% 240%;
+  box-shadow: var(--glass-inset);
 }
 .theme-pick:active,
-.theme-pick.is-pressing { transform: scale(0.96); }
+.theme-pick.is-pressing { transform: scale(var(--glass-press-scale)); }
 .theme-pick-label {
   min-height: 1.2em;
   font-family: var(--mono);
@@ -1055,11 +1165,11 @@ html:not(.light) .theme-mini-system {
   -webkit-backdrop-filter: blur(12px);
   font-size: 20px;
   line-height: 1;
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.22);
-  transition: transform 0.24s var(--spring);
+  box-shadow: var(--glass-inset);
+  transition: transform 0.28s var(--spring);
 }
 .cal-nav button:active,
-.cal-nav button.is-pressing { transform: scale(0.9); }
+.cal-nav button.is-pressing { transform: scale(var(--glass-press-scale)); }
 .cal {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -1477,6 +1587,91 @@ html.light .boot {
   100% { transform: translateX(280%); }
 }
 
+.btn,
+.tabs button,
+.toggle button,
+.quick-log-btn,
+.expand-btn,
+.day-pill,
+.time-pill,
+.fab,
+.fab-item,
+.stepper button,
+.cal-nav button,
+.theme-open,
+.theme-pick {
+  position: relative;
+}
+.btn::before,
+.tabs button::before,
+.toggle button::before,
+.quick-log-btn::before,
+.expand-btn::before,
+.day-pill::before,
+.time-pill::before,
+.fab::before,
+.fab-item::before,
+.stepper button::before,
+.cal-nav button::before,
+.theme-open::before,
+.theme-pick::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+    color-mix(in srgb, var(--accent) 36%, transparent) 0%,
+    transparent 68%
+  );
+  background-repeat: no-repeat;
+  background-position: var(--ripple-x, 50%) var(--ripple-y, 50%);
+  background-size: 0 0;
+  opacity: 0;
+}
+.btn.is-rippling::before,
+.tabs button.is-rippling::before,
+.toggle button.is-rippling::before,
+.quick-log-btn.is-rippling::before,
+.expand-btn.is-rippling::before,
+.day-pill.is-rippling::before,
+.time-pill.is-rippling::before,
+.fab.is-rippling::before,
+.fab-item.is-rippling::before,
+.stepper button.is-rippling::before,
+.cal-nav button.is-rippling::before,
+.theme-open.is-rippling::before,
+.theme-pick.is-rippling::before {
+  animation: glass-ripple 320ms ease-out;
+}
+.tabs button.on.is-rippling,
+.tabs button.active.is-rippling,
+.tabs button[aria-pressed="true"].is-rippling,
+.day-pill.on.is-rippling,
+.day-pill.active.is-rippling,
+.day-pill[aria-pressed="true"].is-rippling,
+.time-pill.on.is-rippling,
+.time-pill.active.is-rippling,
+.time-pill[aria-pressed="true"].is-rippling,
+.toggle button.on.is-rippling,
+.toggle button.active.is-rippling,
+.toggle button[aria-pressed="true"].is-rippling,
+.theme-pick.on.is-rippling,
+.theme-pick.active.is-rippling,
+.theme-pick[aria-checked="true"].is-rippling {
+  animation: glass-mint-fill 320ms ease-out;
+}
+@keyframes glass-ripple {
+  0% { background-size: 0 0; opacity: 0.72; }
+  55% { background-size: 160% 160%; opacity: 0.34; }
+  100% { background-size: 240% 240%; opacity: 0; }
+}
+@keyframes glass-mint-fill {
+  0% { background-size: 0 0; }
+  100% { background-size: 240% 240%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .boot-scan,
   .boot-motes i,
@@ -1519,6 +1714,22 @@ html.light .boot {
   .theme-pick:active,
   .theme-pick.is-pressing {
     transform: none;
+  }
+  .is-rippling::before {
+    animation: none;
+    content: none;
+  }
+  .tabs button.on.is-rippling,
+  .tabs button.active.is-rippling,
+  .day-pill.on.is-rippling,
+  .day-pill.active.is-rippling,
+  .time-pill.on.is-rippling,
+  .time-pill.active.is-rippling,
+  .toggle button.on.is-rippling,
+  .toggle button.active.is-rippling,
+  .theme-pick.on.is-rippling,
+  .theme-pick.active.is-rippling {
+    animation: none;
   }
   .theme-overlay { animation: none; }
   .skeleton-card { animation: none; }
