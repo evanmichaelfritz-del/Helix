@@ -536,6 +536,35 @@ describe("dose sheet mode", () => {
     expect(mode.kind).toBe("undo");
     if (mode.kind === "undo") expect(mode.doseId).toBe("d1");
   });
+
+  it("opens LogDoseSheet with a past loggedOn from the calendar day card", () => {
+    const sheets = readFileSync("src/components/Sheets.tsx", "utf8");
+    const state = readFileSync("src/lib/state.tsx", "utf8");
+    expect(state).toMatch(/kind: "log-dose"; peptideId\?: string; loggedOn\?: LocalDate/);
+    expect(sheets).toMatch(/loggedOn=\{sheet\.loggedOn\}/);
+    expect(sheets).toMatch(/resolveDoseLoggedOn\(loggedOn, today\)/);
+    expect(sheets).toMatch(/\.doses\(on\)/);
+    expect(sheets).toMatch(/loggedOn: on/);
+    expect(sheets).toMatch(/dayHeading\(on\)/);
+    expect(sheets).not.toMatch(/type="time"/);
+  });
+
+  it("preserves loggedOn on add-peptide returnTo", () => {
+    const sheets = readFileSync("src/components/Sheets.tsx", "utf8");
+    const state = readFileSync("src/lib/state.tsx", "utf8");
+    expect(state).toMatch(/returnTo\?: \{ kind: "log-dose"; loggedOn\?: LocalDate \}/);
+    expect(sheets).toMatch(/returnTo: \{ kind: "log-dose", loggedOn: on \}/);
+    expect(sheets).toMatch(
+      /openSheet\(\{ kind: "log-dose", peptideId: peptide.id, loggedOn: returnTo.loggedOn \}\)/,
+    );
+  });
+
+  it("keeps Today and FAB log-dose opens defaulting to today", () => {
+    const today = readFileSync("src/pages/Today.tsx", "utf8");
+    expect(today).toMatch(/openSheet\(\{ kind: "log-dose" \}\)/);
+    expect(today).toMatch(/openSheet\(\{ kind: "log-dose", peptideId: item.peptide.id \}\)/);
+    expect(today).not.toMatch(/openSheet\(\{ kind: "log-dose"[^}]*loggedOn/);
+  });
 });
 
 describe("postgres schema", () => {
@@ -808,6 +837,11 @@ describe("design scaffold locks", () => {
     expect(cal).toMatch(/row\.name/);
     expect(cal).toMatch(/No peptides logged/);
     expect(cal).toMatch(/setOpenOn/);
+    expect(cal).toMatch(/canLogDoseOn\(openOn, today\)/);
+    expect(cal).toMatch(/openSheet\(\{ kind: "log-dose", loggedOn \}\)/);
+    expect(cal).toMatch(/Log dose/);
+    expect(cal).not.toMatch(/Can't log a future day/);
+    expect(cal).not.toMatch(/to=\{`\/calendar/);
     expect(css).toMatch(/\.cal-dots i/);
     expect(css).not.toMatch(/\.cal \.dot \{ box-shadow: inset 0 -3px 0 var\(--accent\)/);
   });
@@ -847,7 +881,9 @@ describe("design scaffold locks", () => {
     expect(today).not.toMatch(/Loading…/);
     expect(readFileSync("src/components/Sheets.tsx", "utf8")).not.toMatch(/Loading…/);
     expect(readFileSync("src/components/Sheets.tsx", "utf8")).toMatch(/Escape/);
-    expect(readFileSync("src/components/Sheets.tsx", "utf8")).toMatch(/returnTo: "log-dose"/);
+    expect(readFileSync("src/components/Sheets.tsx", "utf8")).toMatch(
+      /returnTo: \{ kind: "log-dose", loggedOn: on \}/,
+    );
     expect(readFileSync("src/components/Sheets.tsx", "utf8")).toMatch(/BAC water mL/);
     expect(readFileSync("src/components/Sheets.tsx", "utf8")).not.toMatch(/formulateReverse/);
     expect(readFileSync("src/components/Skeleton.tsx", "utf8")).toMatch(/skeleton-pulse|Skeleton/);

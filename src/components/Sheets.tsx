@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { stepperDelta } from "@shared/health.ts";
-import { doseSheetMode } from "@shared/dose-sheet.ts";
+import { doseSheetMode, resolveDoseLoggedOn } from "@shared/dose-sheet.ts";
 import { SYRINGE_UNITS, type SyringeUnits } from "@shared/peptide-calc.ts";
-import { PEPTIDE_UNITS, todayLocal, type Dose, type Peptide, type PeptideUnit } from "@shared/types.ts";
+import { PEPTIDE_UNITS, todayLocal, type Dose, type LocalDate, type Peptide, type PeptideUnit } from "@shared/types.ts";
 import { cn } from "@shared/cn.ts";
-import { kgFromInput } from "../lib/format.ts";
+import { dayHeading, kgFromInput } from "../lib/format.ts";
 import { ApiError, client } from "../lib/api.ts";
 import { useAppState } from "../lib/state.tsx";
 
@@ -29,7 +29,7 @@ export function Sheets() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="handle" />
-        {sheet.kind === "log-dose" ? <LogDoseSheet peptideId={sheet.peptideId} /> : null}
+        {sheet.kind === "log-dose" ? <LogDoseSheet peptideId={sheet.peptideId} loggedOn={sheet.loggedOn} /> : null}
         {sheet.kind === "log-weight" ? <LogWeightSheet /> : null}
         {sheet.kind === "add-peptide" ? <AddPeptideSheet returnTo={sheet.returnTo} /> : null}
         {sheet.kind === "add-vial" ? <AddVialSheet peptideId={sheet.peptideId} /> : null}
@@ -47,9 +47,17 @@ function SheetCancel() {
   );
 }
 
-function LogDoseSheet({ peptideId }: { peptideId?: string }) {
+function LogDoseSheet({ peptideId, loggedOn }: { peptideId?: string; loggedOn?: LocalDate }) {
   const { peptides, closeSheet, bump, showToast, openSheet } = useAppState();
-  const [todayDoses, setTodayDoses] = useState<Dose[] | null>(null);
+  const today = todayLocal();
+  const on = resolveDoseLoggedOn(loggedOn, today);
+  const catchUpLine =
+    on !== today ? (
+      <p className="muted" style={{ margin: "-8px 0 16px" }}>
+        {dayHeading(on)}
+      </p>
+    ) : null;
+  const [dayDoses, setDayDoses] = useState<Dose[] | null>(null);
   const [amount, setAmount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,19 +65,19 @@ function LogDoseSheet({ peptideId }: { peptideId?: string }) {
   useEffect(() => {
     let cancelled = false;
     client
-      .doses(todayLocal())
+      .doses(on)
       .then((r) => {
-        if (!cancelled) setTodayDoses(r.doses.filter((d) => !d.undone));
+        if (!cancelled) setDayDoses(r.doses.filter((d) => !d.undone));
       })
       .catch(() => {
-        if (!cancelled) setTodayDoses([]);
+        if (!cancelled) setDayDoses([]);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [on]);
 
-  const loggedIds = new Set((todayDoses ?? []).map((d) => d.peptideId));
+  const loggedIds = new Set((dayDoses ?? []).map((d) => d.peptideId));
   const peptide =
     (peptideId ? peptides.find((p) => p.id === peptideId) : undefined) ??
     peptides.find((p) => !loggedIds.has(p.id)) ??
@@ -83,9 +91,13 @@ function LogDoseSheet({ peptideId }: { peptideId?: string }) {
     return (
       <>
         <h2>Log dose</h2>
+        {catchUpLine}
         <p className="muted">Add a peptide first.</p>
         <div className="row-btns">
-          <button className="btn" onClick={() => openSheet({ kind: "add-peptide", returnTo: "log-dose" })}>
+          <button
+            className="btn"
+            onClick={() => openSheet({ kind: "add-peptide", returnTo: { kind: "log-dose", loggedOn: on } })}
+          >
             Add a peptide
           </button>
           <SheetCancel />
@@ -94,7 +106,7 @@ function LogDoseSheet({ peptideId }: { peptideId?: string }) {
     );
   }
 
-  const logged = (todayDoses ?? []).find((d) => d.peptideId === peptide.id);
+  const logged = (dayDoses ?? []).find((d) => d.peptideId === peptide.id);
   const mode = doseSheetMode(logged);
 
   async function undo() {
@@ -116,6 +128,7 @@ function LogDoseSheet({ peptideId }: { peptideId?: string }) {
     return (
       <>
         <h2>Logged {peptide.name}</h2>
+        {catchUpLine}
         <p className="unit">
           {mode.amount} {mode.unit}
         </p>
@@ -138,7 +151,7 @@ function LogDoseSheet({ peptideId }: { peptideId?: string }) {
       const { dose } = await client.logDose({
         peptideId: peptide.id,
         amount,
-        loggedOn: todayLocal(),
+        loggedOn: on,
       });
       closeSheet();
       bump();
@@ -159,6 +172,7 @@ function LogDoseSheet({ peptideId }: { peptideId?: string }) {
   return (
     <>
       <h2>Log {peptide.name}</h2>
+      {catchUpLine}
       <div className="stepper">
         <button type="button" onClick={() => setAmount((n) => Math.max(0, roundAmt(n - delta, peptide.unit)))} aria-label="Decrease">
           −
@@ -229,7 +243,7 @@ function LogWeightSheet() {
   );
 }
 
-function AddPeptideSheet({ returnTo }: { returnTo?: "log-dose" }) {
+function AddPeptideSheet({ returnTo }: { returnTo?: { kind: "log-dose"; loggedOn?: LocalDate } }) {
   const { closeSheet, bump, setPeptides, peptides, openSheet } = useAppState();
   const [name, setName] = useState("");
   const [unit, setUnit] = useState<PeptideUnit>("mcg");
@@ -243,8 +257,8 @@ function AddPeptideSheet({ returnTo }: { returnTo?: "log-dose" }) {
       const { peptide } = await client.createPeptide({ name: name.trim(), unit });
       setPeptides([...peptides, peptide]);
       bump();
-      if (returnTo === "log-dose") {
-        openSheet({ kind: "log-dose", peptideId: peptide.id });
+      if (returnTo?.kind === "log-dose") {
+        openSheet({ kind: "log-dose", peptideId: peptide.id, loggedOn: returnTo.loggedOn });
       } else {
         closeSheet();
       }
