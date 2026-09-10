@@ -10,3 +10,11 @@ export function doseSheetMode(logged: Pick<Dose, "id" | "amount" | "unit"> | und
   }
   return { kind: "save" };
 }
+
+export function resolveDoseLoggedOn<T extends string>(loggedOn: T | undefined, today: T): T {
+  return loggedOn ?? today;
+}
+
+export function canLogDoseOn(on: string, today: string): boolean {
+  return on <= today;
+}

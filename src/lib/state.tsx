@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import type {
   Dose,
   HealthDay,
+  LocalDate,
   Peptide,
   RunwayTone,
   TodayPayload,
@@ -17,9 +18,9 @@ export type VialWithRunway = Vial & {
 };
 
 export type Sheet =
-  | { kind: "log-dose"; peptideId?: string }
+  | { kind: "log-dose"; peptideId?: string; loggedOn?: LocalDate }
   | { kind: "log-weight" }
-  | { kind: "add-peptide"; returnTo?: "log-dose" }
+  | { kind: "add-peptide"; returnTo?: { kind: "log-dose"; loggedOn?: LocalDate } }
   | { kind: "add-vial"; peptideId?: string };
 
 type Toast = { message: string; undo?: () => Promise<void> };

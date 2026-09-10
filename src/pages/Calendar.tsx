@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { dosesByDay, monthCells, shiftMonth } from "@shared/calendar.ts";
-import { todayLocal } from "@shared/types.ts";
+import { canLogDoseOn } from "@shared/dose-sheet.ts";
+import { parseLocalDate, todayLocal } from "@shared/types.ts";
 import { dayHeading } from "../lib/format.ts";
 import { cn } from "@shared/cn.ts";
 import { useAppState } from "../lib/state.tsx";
@@ -11,7 +12,7 @@ const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const MAX_DOTS = 4;
 
 export function CalendarPage() {
-  const { peptides, doses, appDataReady } = useAppState();
+  const { peptides, doses, appDataReady, openSheet } = useAppState();
   const showSkeleton = useDelayedFlag(!appDataReady);
   const today = todayLocal();
   const [y, m] = today.split("-").map(Number);
@@ -103,6 +104,20 @@ export function CalendarPage() {
               ))}
             </div>
           )}
+          {canLogDoseOn(openOn, today) ? (
+            <div className="row-btns">
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  const loggedOn = parseLocalDate(openOn);
+                  if (loggedOn) openSheet({ kind: "log-dose", loggedOn });
+                }}
+              >
+                Log dose
+              </button>
+            </div>
+          ) : null}
         </section>
       ) : null}
     </>
