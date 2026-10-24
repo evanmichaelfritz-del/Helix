@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
+import { parseHelixHelper } from "../shared/import/helix.js";
 import { parseImportFile } from "../shared/import/index.js";
 import { WHOOP_IMPORT_CAP } from "../shared/import/whoop.js";
+import { HELIX_EXPORT_KIND } from "../shared/types.js";
 import { createApp } from "./app.js";
 import { createSqliteDb, migrate } from "./db.js";
-import { IMPORT_BODY_MAX_BYTES } from "./routes/import.js";
+import { IMPORT_BODY_MAX_BYTES, recordsSchema } from "./routes/import.js";
 
 async function testApp() {
   const db = await createSqliteDb(":memory:");
   await migrate(db);
-  return createApp(db);
+  return { app: createApp(db), db };
 }
 
 async function signup(app: ReturnType<typeof createApp>) {
@@ -28,7 +30,7 @@ function addUtcDays(iso: string, days: number): string {
 
 describe("import body limit and schema bounds", () => {
   it("rejects an import larger than 1000000 bytes with 413", async () => {
-    const app = await testApp();
+    const { app } = await testApp();
     const cookie = await signup(app);
     const res = await app.request("/api/import/records", {
       method: "POST",
@@ -43,7 +45,7 @@ describe("import body limit and schema bounds", () => {
   });
 
   it("still parses a body at exactly the limit", async () => {
-    const app = await testApp();
+    const { app } = await testApp();
     const cookie = await signup(app);
     const res = await app.request("/api/import/records", {
       method: "POST",
@@ -58,7 +60,7 @@ describe("import body limit and schema bounds", () => {
   });
 
   it("accepts a Whoop CSV zip at the 400-day cap and a bounded Helix payload", async () => {
-    const app = await testApp();
+    const { app } = await testApp();
     const cookie = await signup(app);
     const headers = { Cookie: cookie, "Content-Type": "application/json" };
 
@@ -138,7 +140,7 @@ describe("import body limit and schema bounds", () => {
   });
 
   it("rejects oversized names, bad dates, and amounts above the cap", async () => {
-    const app = await testApp();
+    const { app } = await testApp();
     const cookie = await signup(app);
     const headers = { Cookie: cookie, "Content-Type": "application/json" };
     const base = {
@@ -165,6 +167,10 @@ describe("import body limit and schema bounds", () => {
       }),
     });
     expect(longName.status).toBe(400);
+    const longNameBody = await longName.json();
+    expect(longNameBody).toEqual({
+      error: "vials.0.peptideName: String must contain at most 80 character(s)",
+    });
 
     const badOpened = await app.request("/api/import/records", {
       method: "POST",
@@ -177,12 +183,49 @@ describe("import body limit and schema bounds", () => {
             totalAmount: 10000,
             remainingAmount: 8500,
             dose: 500,
-            openedOn: "2026-08-26T00:00:00.000Z",
+            openedOn: "2023-02-29",
           },
         ],
       }),
     });
     expect(badOpened.status).toBe(400);
+    expect(await badOpened.json()).toEqual({ error: "vials.0.openedOn: Invalid date" });
+
+    const impossible = await app.request("/api/import/records", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        ...base,
+        vials: [
+          {
+            peptideName: "MOTS-C",
+            totalAmount: 10000,
+            remainingAmount: 8500,
+            dose: 500,
+            openedOn: "2024-13-45",
+          },
+        ],
+      }),
+    });
+    expect(impossible.status).toBe(400);
+    expect(await impossible.json()).toEqual({ error: "vials.0.openedOn: Invalid date" });
+    expect(
+      recordsSchema.safeParse({
+        source: "helix",
+        healthDays: [],
+        workouts: [],
+        weighIns: [],
+        vials: [
+          {
+            peptideName: "MOTS-C",
+            totalAmount: 10,
+            remainingAmount: 10,
+            dose: 1,
+            openedOn: "2024-02-29",
+          },
+        ],
+      }).success,
+    ).toBe(true);
 
     const badLoggedAt = await app.request("/api/import/records", {
       method: "POST",
@@ -201,6 +244,9 @@ describe("import body limit and schema bounds", () => {
       }),
     });
     expect(badLoggedAt.status).toBe(400);
+    const loggedAtBody = (await badLoggedAt.json()) as { error?: unknown };
+    expect(typeof loggedAtBody.error).toBe("string");
+    expect(String(loggedAtBody.error).startsWith("doses.0.loggedAt:")).toBe(true);
 
     const hugeAmount = await app.request("/api/import/records", {
       method: "POST",
@@ -231,5 +277,132 @@ describe("import body limit and schema bounds", () => {
       }),
     });
     expect(tooManyDays.status).toBe(400);
+    expect(await tooManyDays.json()).toEqual({
+      error: "healthDays: Array must contain at most 400 element(s)",
+    });
+  });
+
+  it("rejects 333000 empty health days in one issue, well under a second", async () => {
+    const { app } = await testApp();
+    const cookie = await signup(app);
+    const healthDays = `[${new Array(333_000).fill("{}").join(",")}]`;
+    const body = `{"source":"whoop","healthDays":${healthDays},"workouts":[],"weighIns":[]}`;
+    expect(Buffer.byteLength(body)).toBeLessThan(IMPORT_BODY_MAX_BYTES);
+
+    const parsedStarted = performance.now();
+    const parsed = recordsSchema.safeParse(JSON.parse(body));
+    const parsedMs = performance.now() - parsedStarted;
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(parsed.error.issues).toHaveLength(1);
+    expect(parsed.error.issues[0]).toMatchObject({ code: "too_big", path: ["healthDays"] });
+    expect(parsedMs).toBeLessThan(500);
+
+    const httpStarted = performance.now();
+    const res = await app.request("/api/import/records", {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body,
+    });
+    const httpMs = performance.now() - httpStarted;
+    expect(res.status).toBe(400);
+    expect(httpMs).toBeLessThan(500);
+    expect(await res.json()).toEqual({
+      error: "healthDays: Array must contain at most 400 element(s)",
+    });
+  });
+
+  it("normalises offset datetimes and still imports when one helper date is unusable", async () => {
+    const { app, db } = await testApp();
+    const cookie = await signup(app);
+    const parsed = parseHelixHelper(
+      JSON.stringify({
+        kind: HELIX_EXPORT_KIND,
+        peptides: [
+          { name: "MOTS-C", unit: "mcg" },
+          { name: "Retatrutide", unit: "mg" },
+        ],
+        vials: [
+          {
+            peptideName: "MOTS-C",
+            totalAmount: 10000,
+            remainingAmount: 8500,
+            dose: 500,
+            openedOn: "2026-08-26T23:00:00-05:00",
+          },
+          {
+            peptideName: "Retatrutide",
+            totalAmount: 10,
+            remainingAmount: 8,
+            dose: 2,
+            openedOn: "2023-02-29",
+          },
+        ],
+        doses: [
+          {
+            peptideName: "MOTS-C",
+            amount: 500,
+            unit: "mcg",
+            loggedOn: "2026-08-30",
+            loggedAt: "2026-08-30T12:00:00+05:30",
+          },
+          {
+            peptideName: "Retatrutide",
+            amount: 2,
+            unit: "mg",
+            loggedOn: "2026-08-31",
+            loggedAt: "yesterday",
+          },
+        ],
+      }),
+    );
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.records.vials.map((vial) => vial.openedOn)).toEqual(["2026-08-27", null]);
+    expect(parsed.records.doses.map((dose) => dose.loggedAt)).toEqual(["2026-08-30T06:30:00.000Z", undefined]);
+
+    const res = await app.request("/api/import/records", {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: JSON.stringify(parsed.records),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ peptides: 2, vials: 2, doses: 2 });
+    const vials = await db.all<{ peptide_id: string; opened_on: string | null }>(
+      "SELECT peptide_id, opened_on FROM vials ORDER BY opened_on IS NULL, opened_on",
+    );
+    expect(vials.map((row) => row.opened_on)).toEqual(["2026-08-27", null]);
+    const logged = await db.get<{ logged_at: string }>(
+      "SELECT logged_at FROM doses WHERE logged_on = ?",
+      ["2026-08-30"],
+    );
+    expect(logged?.logged_at).toBe("2026-08-30T06:30:00.000Z");
+  });
+
+  it("returns a string zod error that api.ts can show on Account and Vitals", async () => {
+    const { app } = await testApp();
+    const res = await app.request("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.77" },
+      body: JSON.stringify({ email: "evan@example.com", password: "short" }),
+    });
+    expect(res.status).toBe(400);
+    const data: unknown = await res.json();
+    const message =
+      data && typeof data === "object" && "error" in data && typeof data.error === "string"
+        ? data.error
+        : res.statusText;
+    expect(message).toBe("password: String must contain at least 8 character(s)");
+    expect(message).not.toBe("Bad Request");
+  });
+
+  it("lets overlapping first requests share one migrate", async () => {
+    const db = await createSqliteDb(":memory:");
+    const app = createApp(db);
+    const [a, b] = await Promise.all([app.request("/api/healthz"), app.request("/api/healthz")]);
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    const tables = await db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'");
+    expect(tables.some((table) => table.name === "users")).toBe(true);
   });
 });

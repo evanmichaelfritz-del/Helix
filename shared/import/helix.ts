@@ -1,4 +1,5 @@
 import { HELIX_EXPORT_KIND, type PeptideUnit } from "../types.js";
+import { normalizeLoggedAt, normalizeOpenedOn } from "./dates.js";
 import { emptyRecords } from "./empty.js";
 import type { ParseResult } from "./result.js";
 import { isWhoopZipCsv } from "./whoop.js";
@@ -139,13 +140,14 @@ function readVial(row: Record<string, unknown>) {
   const remainingAmount = num(row, "remainingAmount") ?? totalAmount;
   const dose = num(row, "dose");
   if (!peptideName || totalAmount == null || remainingAmount == null || dose == null) return undefined;
+  const rawOpenedOn = str(row, "openedOn");
   return {
     peptideName,
     label: str(row, "label") ?? null,
     totalAmount,
     remainingAmount,
     dose,
-    openedOn: str(row, "openedOn") ?? null,
+    openedOn: rawOpenedOn ? normalizeOpenedOn(rawOpenedOn) ?? null : null,
   };
 }
 
@@ -155,7 +157,15 @@ function readDose(row: Record<string, unknown>) {
   const unit = str(row, "unit");
   const loggedOn = str(row, "loggedOn");
   if (!peptideName || amount == null || !unit || !loggedOn || !isUnit(unit)) return undefined;
-  return { peptideName, amount, unit, loggedOn, loggedAt: str(row, "loggedAt") };
+  const loggedAt = str(row, "loggedAt");
+  const normalizedLoggedAt = loggedAt ? normalizeLoggedAt(loggedAt) : undefined;
+  return {
+    peptideName,
+    amount,
+    unit,
+    loggedOn,
+    ...(normalizedLoggedAt ? { loggedAt: normalizedLoggedAt } : {}),
+  };
 }
 
 function readWeighIn(row: Record<string, unknown>) {
