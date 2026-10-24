@@ -29,8 +29,14 @@ export function tokenDigestEqual(stored: string, computed: string): boolean {
  */
 export async function migrateAuthTokens(db: Database): Promise<void> {
   const sessions = await db.all<{ id: string }>("SELECT id FROM sessions WHERE id NOT LIKE 'sha256:%'");
-  for (const row of sessions) {
-    await db.run("UPDATE sessions SET id = ? WHERE id = ?", [hashToken(row.id), row.id]);
+  // Same JS hash on SQLite and Neon. One SQL sha256() is not available on SQLite.
+  if (sessions.length > 0) {
+    await db.batch(
+      sessions.map((row) => ({
+        sql: "UPDATE sessions SET id = ? WHERE id = ?",
+        params: [hashToken(row.id), row.id],
+      })),
+    );
   }
   await db.run("DELETE FROM password_resets WHERE id NOT LIKE 'sha256:%'");
 }

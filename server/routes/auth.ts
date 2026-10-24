@@ -127,18 +127,23 @@ authRoutes.post(
     const { token, password } = c.req.valid("json");
     const db = c.get("db");
     const digest = hashToken(token);
-    const row = await db.get<{ id: string; user_id: string }>(
-      "SELECT id, user_id FROM password_resets WHERE id = ? AND expires_at > ?",
+    const passwordHash = await hashPassword(password);
+    const claimed = await db.get<{ id: string; user_id: string }>(
+      "DELETE FROM password_resets WHERE id = ? AND expires_at > ? RETURNING id, user_id",
       [digest, new Date().toISOString()],
     );
-    if (!row || !tokenDigestEqual(row.id, digest)) {
+    if (!claimed || !tokenDigestEqual(claimed.id, digest)) {
       return c.json({ error: "That reset link is invalid or expired." }, 400);
     }
-    const passwordHash = await hashPassword(password);
-    await db.run("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, row.user_id]);
-    await db.run("DELETE FROM sessions WHERE user_id = ?", [row.user_id]);
-    await db.run("DELETE FROM password_resets WHERE user_id = ?", [row.user_id]);
-    const user = await db.get<UserRow>(`SELECT ${USER_COLS} FROM users WHERE id = ?`, [row.user_id]);
+    await db.batch([
+      {
+        sql: "UPDATE users SET password_hash = ? WHERE id = ?",
+        params: [passwordHash, claimed.user_id],
+      },
+      { sql: "DELETE FROM sessions WHERE user_id = ?", params: [claimed.user_id] },
+      { sql: "DELETE FROM password_resets WHERE user_id = ?", params: [claimed.user_id] },
+    ]);
+    const user = await db.get<UserRow>(`SELECT ${USER_COLS} FROM users WHERE id = ?`, [claimed.user_id]);
     if (!user) return c.json({ error: "That reset link is invalid or expired." }, 400);
     const passwordIdentity = await db.get<{ id: string }>(
       "SELECT id FROM identities WHERE user_id = ? AND provider = ?",

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { newId, requireUser } from "../auth.js";
@@ -7,6 +8,13 @@ import type { Database, SqlValue } from "../db.js";
 import { parseLocalDate, PEPTIDE_COLORS, PEPTIDE_UNITS } from "../../shared/types.js";
 import { DEFAULT_PEPTIDE_SCHEDULE, serializePeptideSchedule } from "../../shared/schedule.js";
 import { activeDoseSql, undoneParam } from "../dialect.js";
+
+/** Audit L5. A full 400-day Whoop JSON import is well under this; Vercel itself caps at 4.5 MB. */
+export const IMPORT_BODY_MAX_BYTES = 1_000_000;
+
+/** Peptide amounts the client actually sends top out around 10_000 mcg. */
+const MAX_AMOUNT = 1_000_000;
+const amountSchema = z.number().positive().max(MAX_AMOUNT);
 
 const daySchema = z.object({
   loggedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -44,7 +52,7 @@ const recordsSchema = z.object({
         name: z.string().min(1).max(80),
         unit: z.enum(PEPTIDE_UNITS),
         color: z.string().max(16).optional(),
-        lastAmount: z.number().nullable().optional(),
+        lastAmount: z.number().min(0).max(MAX_AMOUNT).nullable().optional(),
       }),
     )
     .max(50)
@@ -52,12 +60,16 @@ const recordsSchema = z.object({
   vials: z
     .array(
       z.object({
-        peptideName: z.string().min(1),
+        peptideName: z.string().min(1).max(80),
         label: z.string().max(80).nullable().optional(),
-        totalAmount: z.number().positive(),
-        remainingAmount: z.number().min(0),
-        dose: z.number().positive(),
-        openedOn: z.string().nullable().optional(),
+        totalAmount: amountSchema,
+        remainingAmount: z.number().min(0).max(MAX_AMOUNT),
+        dose: amountSchema,
+        openedOn: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .nullable()
+          .optional(),
       }),
     )
     .max(50)
@@ -65,11 +77,11 @@ const recordsSchema = z.object({
   doses: z
     .array(
       z.object({
-        peptideName: z.string().min(1),
-        amount: z.number().positive(),
+        peptideName: z.string().min(1).max(80),
+        amount: amountSchema,
         unit: z.enum(PEPTIDE_UNITS),
         loggedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        loggedAt: z.string().optional(),
+        loggedAt: z.string().datetime().optional(),
       }),
     )
     .max(400)
@@ -139,6 +151,14 @@ function batchRows<T>(value: unknown): T[] {
 }
 
 export const importRoutes = new Hono<Env>();
+
+importRoutes.use(
+  "*",
+  bodyLimit({
+    maxSize: IMPORT_BODY_MAX_BYTES,
+    onError: (c) => c.json({ error: "Import is too large." }, 413),
+  }),
+);
 
 importRoutes.post("/records", zValidator("json", recordsSchema), async (c) => {
   const user = requireUser(c);
