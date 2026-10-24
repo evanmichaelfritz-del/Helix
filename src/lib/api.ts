@@ -51,7 +51,7 @@ async function passkeyOptions(kind: "register" | "authenticate") {
 
 export const client = {
   signup: (email: string, password: string) =>
-    api<{ user: UserPublic }>("/api/auth/signup", { method: "POST", json: { email, password } }),
+    api<{ ok: true }>("/api/auth/signup", { method: "POST", json: { email, password } }),
   login: (email: string, password: string) =>
     api<{ user: UserPublic }>("/api/auth/login", { method: "POST", json: { email, password } }),
   logout: () => api<{ ok: true }>("/api/auth/logout", { method: "POST" }),

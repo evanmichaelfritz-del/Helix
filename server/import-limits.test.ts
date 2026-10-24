@@ -18,13 +18,20 @@ async function testApp() {
 }
 
 async function signup(app: ReturnType<typeof createApp>) {
+  const headers = { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.50" };
   const res = await app.request("/api/auth/signup", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.50" },
+    headers,
     body: JSON.stringify({ email: "evan@example.com", password: "password12" }),
   });
   expect(res.status).toBe(201);
-  return (res.headers.get("set-cookie") ?? "").split(";")[0];
+  const login = await app.request("/api/auth/login", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ email: "evan@example.com", password: "password12" }),
+  });
+  expect(login.status).toBe(200);
+  return (login.headers.get("set-cookie") ?? "").split(";")[0];
 }
 
 function addUtcDays(iso: string, days: number): string {

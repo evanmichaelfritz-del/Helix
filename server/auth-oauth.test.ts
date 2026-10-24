@@ -49,13 +49,20 @@ async function testApp() {
 }
 
 async function signup(app: ReturnType<typeof createApp>, email = "evan@example.com") {
+  const headers = { "Content-Type": "application/json" };
   const res = await app.request("/api/auth/signup", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ email, password: "password12" }),
   });
   expect(res.status).toBe(201);
-  return (res.headers.get("set-cookie") ?? "").split(";")[0];
+  const login = await app.request("/api/auth/login", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ email, password: "password12" }),
+  });
+  expect(login.status).toBe(200);
+  return (login.headers.get("set-cookie") ?? "").split(";")[0];
 }
 
 function oauthCookie(provider: "google" | "x", state = "state-value", verifier = "verifier-value") {

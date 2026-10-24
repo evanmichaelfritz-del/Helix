@@ -41,22 +41,25 @@ authRoutes.post(
     const { email, password } = c.req.valid("json");
     const db = c.get("db");
     const existing = await db.get<{ id: string }>("SELECT id FROM users WHERE email = ?", [email]);
-    if (existing) return c.json({ error: "An account with that email already exists." }, 409);
-    const user: UserRow = {
-      id: newId(),
-      email,
-      password_hash: await hashPassword(password),
-      display_name: null,
-      settings: JSON.stringify(DEFAULT_SETTINGS),
-      created_at: new Date().toISOString(),
-    };
-    await db.run(
-      "INSERT INTO users (id, email, password_hash, display_name, settings, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-      [user.id, user.email, user.password_hash, user.display_name, user.settings, user.created_at],
-    );
-    await insertIdentity(db, user.id, "password", user.id);
-    await createSession(c, user.id);
-    return c.json({ user: toPublicUser(user) }, 201);
+    // Hash on both paths so a taken email is not the fast one. No session either way:
+    // an existing account cannot be given this caller's cookie, and a new account signs in via login.
+    const passwordHash = await hashPassword(password);
+    if (!existing) {
+      const user: UserRow = {
+        id: newId(),
+        email,
+        password_hash: passwordHash,
+        display_name: null,
+        settings: JSON.stringify(DEFAULT_SETTINGS),
+        created_at: new Date().toISOString(),
+      };
+      await db.run(
+        "INSERT INTO users (id, email, password_hash, display_name, settings, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        [user.id, user.email, user.password_hash, user.display_name, user.settings, user.created_at],
+      );
+      await insertIdentity(db, user.id, "password", user.id);
+    }
+    return c.json({ ok: true }, 201);
   },
 );
 

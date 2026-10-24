@@ -28,7 +28,15 @@ describe("session and reset tokens", () => {
       body: JSON.stringify({ email: "evan@example.com", password: "password12" }),
     });
     expect(res.status).toBe(201);
-    const cookie = cookieOf(res);
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(await db.all("SELECT id FROM sessions")).toEqual([]);
+    const login = await app.request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.21" },
+      body: JSON.stringify({ email: "evan@example.com", password: "password12" }),
+    });
+    expect(login.status).toBe(200);
+    const cookie = cookieOf(login);
     const raw = rawToken(cookie);
     const stored = await db.get<{ id: string }>("SELECT id FROM sessions");
     expect(stored?.id).toBe(hashToken(raw));
@@ -46,13 +54,19 @@ describe("session and reset tokens", () => {
       headers: ip,
       body: JSON.stringify({ email: "evan@example.com", password: "password12" }),
     });
-    const first = cookieOf(signup);
-    const login = await app.request("/api/auth/login", {
+    expect(signup.status).toBe(201);
+    const firstLogin = await app.request("/api/auth/login", {
       method: "POST",
       headers: ip,
       body: JSON.stringify({ email: "evan@example.com", password: "password12" }),
     });
-    const second = cookieOf(login);
+    const secondLogin = await app.request("/api/auth/login", {
+      method: "POST",
+      headers: ip,
+      body: JSON.stringify({ email: "evan@example.com", password: "password12" }),
+    });
+    const first = cookieOf(firstLogin);
+    const second = cookieOf(secondLogin);
     expect((await app.request("/api/me", { headers: { Cookie: first } })).status).toBe(200);
     expect((await app.request("/api/me", { headers: { Cookie: second } })).status).toBe(200);
 
