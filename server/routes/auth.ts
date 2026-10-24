@@ -1,7 +1,16 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { createSession, destroySession, hashPassword, newId, requireUser, verifyPassword } from "../auth.js";
+import {
+  createSession,
+  destroySession,
+  hashPassword,
+  hashToken,
+  newId,
+  requireUser,
+  tokenDigestEqual,
+  verifyPassword,
+} from "../auth.js";
 import { toPublicUser, type Env, type UserRow } from "../context.js";
 import { insertIdentity } from "../oauth-user.js";
 import { mailerConfigured } from "../origin.js";
@@ -95,7 +104,7 @@ authRoutes.post(
         const token = newId().replaceAll("-", "") + newId().replaceAll("-", "");
         const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
         await db.run("INSERT INTO password_resets (id, user_id, expires_at) VALUES (?, ?, ?)", [
-          token,
+          hashToken(token),
           user.id,
           expires,
         ]);
@@ -117,14 +126,18 @@ authRoutes.post(
   async (c) => {
     const { token, password } = c.req.valid("json");
     const db = c.get("db");
+    const digest = hashToken(token);
     const row = await db.get<{ id: string; user_id: string }>(
       "SELECT id, user_id FROM password_resets WHERE id = ? AND expires_at > ?",
-      [token, new Date().toISOString()],
+      [digest, new Date().toISOString()],
     );
-    if (!row) return c.json({ error: "That reset link is invalid or expired." }, 400);
-    const hash = await hashPassword(password);
-    await db.run("UPDATE users SET password_hash = ? WHERE id = ?", [hash, row.user_id]);
-    await db.run("DELETE FROM password_resets WHERE id = ?", [row.id]);
+    if (!row || !tokenDigestEqual(row.id, digest)) {
+      return c.json({ error: "That reset link is invalid or expired." }, 400);
+    }
+    const passwordHash = await hashPassword(password);
+    await db.run("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, row.user_id]);
+    await db.run("DELETE FROM sessions WHERE user_id = ?", [row.user_id]);
+    await db.run("DELETE FROM password_resets WHERE user_id = ?", [row.user_id]);
     const user = await db.get<UserRow>(`SELECT ${USER_COLS} FROM users WHERE id = ?`, [row.user_id]);
     if (!user) return c.json({ error: "That reset link is invalid or expired." }, 400);
     const passwordIdentity = await db.get<{ id: string }>(

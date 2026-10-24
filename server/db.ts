@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { neon } from "@neondatabase/serverless";
+import { migrateAuthTokens } from "./auth.js";
 import { schemaFor } from "./schema.js";
 
 export type SqlValue = string | number | null | bigint | boolean;
@@ -53,6 +54,7 @@ export async function migrate(db: Database): Promise<void> {
     await sqliteAddPeptideCopy(db);
     await sqliteAddVialMix(db);
   }
+  await migrateAuthTokens(db);
 }
 
 async function sqliteAddPeptideCopy(db: Database): Promise<void> {
