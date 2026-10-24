@@ -516,7 +516,10 @@ describe("import body limit and schema bounds", () => {
     expect(text.length).toBeLessThan(300);
     expect(text.includes(received.slice(0, 400))).toBe(false);
     const data = JSON.parse(text) as { error?: string };
-    expect(data.error?.startsWith("unit: ")).toBe(true);
+    expect(data.error?.startsWith("unit: Invalid enum value. Expected 'mcg' | 'mg' | 'IU' | 'mL', received '")).toBe(
+      true,
+    );
+    expect(data.error?.endsWith("…")).toBe(true);
     expect((data.error ?? "").length).toBeLessThan(220);
   });
 
