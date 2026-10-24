@@ -64,6 +64,11 @@ describe("session and reset tokens", () => {
       user?.id ?? "",
       future,
     ]);
+    await db.run("INSERT INTO password_resets (id, user_id, expires_at) VALUES (?, ?, ?)", [
+      hashToken("other-reset-token-value"),
+      user?.id ?? "",
+      future,
+    ]);
     const storedReset = await db.get<{ id: string }>("SELECT id FROM password_resets");
     expect(storedReset?.id).toBe(hashToken(token));
     expect(storedReset?.id).not.toBe(token);
@@ -102,6 +107,11 @@ describe("session and reset tokens", () => {
       "user-1",
       future,
     ]);
+    await db.run("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)", [
+      "legacy-session-token-2",
+      "user-1",
+      future,
+    ]);
     await db.run("INSERT INTO password_resets (id, user_id, expires_at) VALUES (?, ?, ?)", [
       "legacy-reset-token",
       "user-1",
@@ -109,8 +119,11 @@ describe("session and reset tokens", () => {
     ]);
     await migrateAuthTokens(db);
 
-    const session = await db.get<{ id: string }>("SELECT id FROM sessions");
-    expect(session?.id).toBe(hashToken("legacy-session-token"));
+    const sessions = await db.all<{ id: string }>("SELECT id FROM sessions");
+    expect(sessions.map((row) => row.id).sort()).toEqual(
+      [hashToken("legacy-session-token"), hashToken("legacy-session-token-2")].sort(),
+    );
+    const session = sessions.find((row) => row.id === hashToken("legacy-session-token"));
     expect(await db.all("SELECT id FROM password_resets")).toEqual([]);
 
     const app = createApp(db);
