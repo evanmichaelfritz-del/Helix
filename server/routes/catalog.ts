@@ -67,7 +67,7 @@ peptideRoutes.patch(
       color: z.string().min(4).max(16).optional(),
       schedule: z
         .object({
-          days: z.array(z.number().int().min(0).max(6)),
+          days: z.array(z.unknown()).max(7).pipe(z.array(z.number().int().min(0).max(6))),
           morning: z.boolean(),
           evening: z.boolean(),
         })

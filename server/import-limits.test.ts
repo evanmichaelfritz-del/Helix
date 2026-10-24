@@ -358,7 +358,7 @@ describe("import body limit and schema bounds", () => {
     );
     expect(parsed.kind).toBe("ok");
     if (parsed.kind !== "ok") return;
-    expect(parsed.records.vials.map((vial) => vial.openedOn)).toEqual(["2026-08-27", null]);
+    expect(parsed.records.vials.map((vial) => vial.openedOn)).toEqual(["2026-08-26", null]);
     expect(parsed.records.doses.map((dose) => dose.loggedAt)).toEqual(["2026-08-30T06:30:00.000Z", undefined]);
 
     const res = await app.request("/api/import/records", {
@@ -371,7 +371,7 @@ describe("import body limit and schema bounds", () => {
     const vials = await db.all<{ peptide_id: string; opened_on: string | null }>(
       "SELECT peptide_id, opened_on FROM vials ORDER BY opened_on IS NULL, opened_on",
     );
-    expect(vials.map((row) => row.opened_on)).toEqual(["2026-08-27", null]);
+    expect(vials.map((row) => row.opened_on)).toEqual(["2026-08-26", null]);
     const logged = await db.get<{ logged_at: string }>(
       "SELECT logged_at FROM doses WHERE logged_on = ?",
       ["2026-08-30"],
@@ -394,6 +394,152 @@ describe("import body limit and schema bounds", () => {
         : res.statusText;
     expect(message).toBe("password: String must contain at least 8 character(s)");
     expect(message).not.toBe("Bad Request");
+  });
+
+  it("rejects out-of-range offsets and year-9999 overflow, and keeps the written openedOn day", async () => {
+    const { app, db } = await testApp();
+    const cookie = await signup(app);
+    const headers = { Cookie: cookie, "Content-Type": "application/json" };
+    const base = {
+      source: "helix",
+      healthDays: [],
+      workouts: [],
+      weighIns: [],
+      peptides: [{ name: "MOTS-C", unit: "mcg" }],
+    };
+
+    for (const loggedAt of ["2026-08-30T12:00:00+99:99", "2026-08-30T12:00:00+24:00", "9999-12-31T23:30:00-04:00"]) {
+      const res = await app.request("/api/import/records", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          ...base,
+          doses: [{ peptideName: "MOTS-C", amount: 1, unit: "mcg", loggedOn: "2026-08-30", loggedAt }],
+        }),
+      });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "doses.0.loggedAt: Invalid datetime" });
+    }
+
+    const overflowOpened = await app.request("/api/import/records", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        ...base,
+        vials: [
+          {
+            peptideName: "MOTS-C",
+            totalAmount: 10,
+            remainingAmount: 10,
+            dose: 1,
+            openedOn: "9999-12-31T23:30:00-04:00",
+          },
+        ],
+      }),
+    });
+    expect(overflowOpened.status).toBe(400);
+    expect(await overflowOpened.json()).toEqual({ error: "vials.0.openedOn: Invalid date" });
+
+    const parsed = parseHelixHelper(
+      JSON.stringify({
+        kind: HELIX_EXPORT_KIND,
+        peptides: [
+          { name: "MOTS-C", unit: "mcg" },
+          { name: "Retatrutide", unit: "mg" },
+        ],
+        vials: [
+          {
+            peptideName: "MOTS-C",
+            totalAmount: 10,
+            remainingAmount: 10,
+            dose: 1,
+            openedOn: "2024-03-10T23:30:00-04:00",
+          },
+          {
+            peptideName: "Retatrutide",
+            totalAmount: 10,
+            remainingAmount: 8,
+            dose: 2,
+            openedOn: "2024-03-10T00:00:00+14:00",
+          },
+        ],
+        doses: [
+          {
+            peptideName: "MOTS-C",
+            amount: 1,
+            unit: "mcg",
+            loggedOn: "2026-08-30",
+            loggedAt: "2026-08-30T12:00:00+23:59",
+          },
+        ],
+      }),
+    );
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(parsed.records.vials.map((vial) => vial.openedOn)).toEqual(["2024-03-10", "2024-03-10"]);
+    expect(parsed.records.doses[0]?.loggedAt).toBe("2026-08-29T12:01:00.000Z");
+
+    const saved = await app.request("/api/import/records", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(parsed.records),
+    });
+    expect(saved.status).toBe(200);
+    const opened = await db.all<{ opened_on: string | null }>("SELECT opened_on FROM vials ORDER BY opened_on");
+    expect(opened.map((row) => row.opened_on)).toEqual(["2024-03-10", "2024-03-10"]);
+    const logged = await db.get<{ logged_at: string }>("SELECT logged_at FROM doses");
+    expect(logged?.logged_at).toBe("2026-08-29T12:01:00.000Z");
+  });
+
+  it("truncates a zod enum message that echoes a huge received value", async () => {
+    const { app } = await testApp();
+    const cookie = await signup(app);
+    const received = "x".repeat(200_000);
+    const res = await app.request("/api/peptides", {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "MOTS-C", unit: received }),
+    });
+    expect(res.status).toBe(400);
+    const text = await res.text();
+    expect(text.length).toBeLessThan(300);
+    expect(text.includes(received.slice(0, 400))).toBe(false);
+    const data = JSON.parse(text) as { error?: string };
+    expect(data.error?.startsWith("unit: ")).toBe(true);
+    expect((data.error ?? "").length).toBeLessThan(220);
+  });
+
+  it("rejects a huge peptide schedule days array quickly", async () => {
+    const { app } = await testApp();
+    const cookie = await signup(app);
+    const headers = { Cookie: cookie, "Content-Type": "application/json" };
+    const created = await app.request("/api/peptides", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "MOTS-C", unit: "mcg" }),
+    });
+    expect(created.status).toBe(201);
+    const { peptide } = (await created.json()) as { peptide: { id: string } };
+    const kept = await app.request(`/api/peptides/${peptide.id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ schedule: { days: [0, 1, 2, 3, 4, 5, 6], morning: true, evening: false } }),
+    });
+    expect(kept.status).toBe(200);
+
+    const days = new Array(400_000).fill("0").join(",");
+    const started = performance.now();
+    const res = await app.request(`/api/peptides/${peptide.id}`, {
+      method: "PATCH",
+      headers,
+      body: `{"schedule":{"days":[${days}],"morning":true,"evening":false}}`,
+    });
+    const elapsed = performance.now() - started;
+    expect(res.status).toBe(400);
+    expect(elapsed).toBeLessThan(500);
+    expect(await res.json()).toEqual({
+      error: "schedule.days: Array must contain at most 7 element(s)",
+    });
   });
 
   it("lets overlapping first requests share one migrate", async () => {

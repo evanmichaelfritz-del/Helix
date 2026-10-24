@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
-import { normalizeOpenedOn } from "../../shared/import/dates.js";
+import { normalizeLoggedAt, normalizeOpenedOn } from "../../shared/import/dates.js";
 import { validate as zValidator } from "../validate.js";
 import { newId, requireUser } from "../auth.js";
 import type { Env, PeptideRow } from "../context.js";
@@ -63,16 +63,21 @@ const vialSchema = z.object({
   openedOn: openedOnSchema.nullable().optional(),
 });
 
+const loggedAtSchema = z
+  .string()
+  .superRefine((value, ctx) => {
+    if (!normalizeLoggedAt(value)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid datetime" });
+    }
+  })
+  .transform((value) => normalizeLoggedAt(value) ?? value);
+
 const doseSchema = z.object({
   peptideName: z.string().min(1).max(80),
   amount: amountSchema,
   unit: z.enum(PEPTIDE_UNITS),
   loggedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  loggedAt: z
-    .string()
-    .datetime({ offset: true })
-    .transform((value) => new Date(value).toISOString())
-    .optional(),
+  loggedAt: loggedAtSchema.optional(),
 });
 
 /** Length is checked on unknown elements before item schemas run, so a huge array fails once. */
