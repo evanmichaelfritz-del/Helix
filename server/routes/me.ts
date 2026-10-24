@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
+import { validate as zValidator } from "../validate.js";
 import { z } from "zod";
 import { requireUser } from "../auth.js";
 import { migratedWeightSettings, parseSettings, serializeSettings, toPublicUser, type Env } from "../context.js";

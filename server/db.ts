@@ -247,9 +247,22 @@ export async function createSqliteDb(url: string): Promise<Database> {
 }
 
 const migrated = new WeakSet<Database>();
+const migrating = new WeakMap<Database, Promise<void>>();
 
 export async function ensureMigrated(db: Database): Promise<void> {
   if (migrated.has(db)) return;
-  await migrate(db);
-  migrated.add(db);
+  let pending = migrating.get(db);
+  if (!pending) {
+    pending = migrate(db).then(
+      () => {
+        migrated.add(db);
+      },
+      (err: unknown) => {
+        migrating.delete(db);
+        throw err;
+      },
+    );
+    migrating.set(db, pending);
+  }
+  await pending;
 }

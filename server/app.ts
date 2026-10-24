@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
 import { authRoutes } from "./routes/auth.js";
 import { oauthRoutes } from "./routes/auth-oauth.js";
@@ -14,6 +15,14 @@ import { meRoutes } from "./routes/me.js";
 import { todayRoutes } from "./routes/today.js";
 import { loadUser } from "./auth.js";
 import { authRateLimit } from "./rate-limit.js";
+
+/** Non-import API bodies. A full import can exceed this and keeps its own 1 MB cap. */
+export const API_BODY_MAX_BYTES = 64 * 1024;
+
+const apiBodyLimit = bodyLimit({
+  maxSize: API_BODY_MAX_BYTES,
+  onError: (c) => c.json({ error: "Request is too large." }, 413),
+});
 
 function isPublicApi(path: string): boolean {
   if (path === "/api/healthz") return true;
@@ -62,6 +71,15 @@ export function createApp(db: Database) {
     if (!user) return c.json({ error: "unauthorized" }, 401);
     c.set("user", user);
     await next();
+  });
+
+  app.use("/api/*", async (c, next) => {
+    const path = new URL(c.req.url).pathname;
+    if (path === "/api/import" || path.startsWith("/api/import/")) {
+      await next();
+      return;
+    }
+    return apiBodyLimit(c, next);
   });
 
   app.get("/api/healthz", (c) => c.json({ ok: true }));

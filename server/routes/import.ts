@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { normalizeLoggedAt, normalizeOpenedOn } from "../../shared/import/dates.js";
+import { validate as zValidator } from "../validate.js";
 import { newId, requireUser } from "../auth.js";
 import type { Env, PeptideRow } from "../context.js";
 import type { Database, SqlValue } from "../db.js";
@@ -25,67 +26,81 @@ const daySchema = z.object({
   steps: z.number().min(0).max(200000).nullable().optional(),
 });
 
-const recordsSchema = z.object({
+const workoutSchema = z.object({
+  loggedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  name: z.string().min(1).max(120),
+  durationMin: z.number().min(0).max(1440).nullable().optional(),
+  strain: z.number().min(0).max(40).nullable().optional(),
+});
+
+const weighInSchema = z.object({
+  loggedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  kg: z.number().positive().max(400),
+});
+
+const peptideSchema = z.object({
+  name: z.string().min(1).max(80),
+  unit: z.enum(PEPTIDE_UNITS),
+  color: z.string().max(16).optional(),
+  lastAmount: z.number().min(0).max(MAX_AMOUNT).nullable().optional(),
+});
+
+const openedOnSchema = z
+  .string()
+  .superRefine((value, ctx) => {
+    if (!normalizeOpenedOn(value)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid date" });
+    }
+  })
+  .transform((value) => normalizeOpenedOn(value) ?? value);
+
+const vialSchema = z.object({
+  peptideName: z.string().min(1).max(80),
+  label: z.string().max(80).nullable().optional(),
+  totalAmount: amountSchema,
+  remainingAmount: z.number().min(0).max(MAX_AMOUNT),
+  dose: amountSchema,
+  openedOn: openedOnSchema.nullable().optional(),
+});
+
+const loggedAtSchema = z
+  .string()
+  .superRefine((value, ctx) => {
+    if (!normalizeLoggedAt(value)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid datetime" });
+    }
+  })
+  .transform((value) => normalizeLoggedAt(value) ?? value);
+
+const doseSchema = z.object({
+  peptideName: z.string().min(1).max(80),
+  amount: amountSchema,
+  unit: z.enum(PEPTIDE_UNITS),
+  loggedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  loggedAt: loggedAtSchema.optional(),
+});
+
+/**
+ * Length is checked before item schemas run. `z.array().max()` still parses every
+ * element, and safeParseAsync builds a promise per element, so a huge array hangs.
+ */
+function capped<T extends z.ZodTypeAny>(item: T, max: number) {
+  return z
+    .custom<unknown[]>(
+      (value) => Array.isArray(value) && value.length <= max,
+      `Array must contain at most ${max} element(s)`,
+    )
+    .pipe(z.array(item));
+}
+
+export const recordsSchema = z.object({
   source: z.enum(["whoop", "garmin", "apple", "helix"]),
-  healthDays: z.array(daySchema).max(400),
-  workouts: z
-    .array(
-      z.object({
-        loggedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        name: z.string().min(1).max(120),
-        durationMin: z.number().min(0).max(1440).nullable().optional(),
-        strain: z.number().min(0).max(40).nullable().optional(),
-      }),
-    )
-    .max(400),
-  weighIns: z
-    .array(
-      z.object({
-        loggedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        kg: z.number().positive().max(400),
-      }),
-    )
-    .max(400),
-  peptides: z
-    .array(
-      z.object({
-        name: z.string().min(1).max(80),
-        unit: z.enum(PEPTIDE_UNITS),
-        color: z.string().max(16).optional(),
-        lastAmount: z.number().min(0).max(MAX_AMOUNT).nullable().optional(),
-      }),
-    )
-    .max(50)
-    .optional(),
-  vials: z
-    .array(
-      z.object({
-        peptideName: z.string().min(1).max(80),
-        label: z.string().max(80).nullable().optional(),
-        totalAmount: amountSchema,
-        remainingAmount: z.number().min(0).max(MAX_AMOUNT),
-        dose: amountSchema,
-        openedOn: z
-          .string()
-          .regex(/^\d{4}-\d{2}-\d{2}$/)
-          .nullable()
-          .optional(),
-      }),
-    )
-    .max(50)
-    .optional(),
-  doses: z
-    .array(
-      z.object({
-        peptideName: z.string().min(1).max(80),
-        amount: amountSchema,
-        unit: z.enum(PEPTIDE_UNITS),
-        loggedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        loggedAt: z.string().datetime().optional(),
-      }),
-    )
-    .max(400)
-    .optional(),
+  healthDays: capped(daySchema, 400),
+  workouts: capped(workoutSchema, 400),
+  weighIns: capped(weighInSchema, 400),
+  peptides: capped(peptideSchema, 50).optional(),
+  vials: capped(vialSchema, 50).optional(),
+  doses: capped(doseSchema, 400).optional(),
 });
 
 type RecordsBody = z.infer<typeof recordsSchema>;

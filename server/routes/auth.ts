@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
+import { validate as zValidator } from "../validate.js";
 import { z } from "zod";
 import {
   createSession,
@@ -135,6 +135,8 @@ authRoutes.post(
     if (!claimed || !tokenDigestEqual(claimed.id, digest)) {
       return c.json({ error: "That reset link is invalid or expired." }, 400);
     }
+    // The token is already consumed. If this batch fails, the password stays unchanged
+    // and the link cannot be retried. That is acceptable while sendPasswordReset returns false.
     await db.batch([
       {
         sql: "UPDATE users SET password_hash = ? WHERE id = ?",

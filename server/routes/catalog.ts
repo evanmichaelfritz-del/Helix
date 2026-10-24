@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
+import { validate as zValidator } from "../validate.js";
 import { z } from "zod";
 import { PEPTIDE_COLORS, PEPTIDE_UNITS } from "../../shared/types.js";
 import { DEFAULT_PEPTIDE_SCHEDULE, parsePeptideSchedule, serializePeptideSchedule } from "../../shared/schedule.js";
@@ -57,23 +57,30 @@ peptideRoutes.post(
   },
 );
 
+/** Length is checked before element parsing. Zod 3 still walks every item after `.max()` fails. */
+export const scheduleDaysSchema = z
+  .custom<unknown[]>(
+    (value) => Array.isArray(value) && value.length <= 7,
+    "Array must contain at most 7 element(s)",
+  )
+  .pipe(z.array(z.number().int().min(0).max(6)));
+
+export const peptidePatchSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  unit: z.enum(PEPTIDE_UNITS).optional(),
+  color: z.string().min(4).max(16).optional(),
+  schedule: z
+    .object({
+      days: scheduleDaysSchema,
+      morning: z.boolean(),
+      evening: z.boolean(),
+    })
+    .optional(),
+});
+
 peptideRoutes.patch(
   "/:id",
-  zValidator(
-    "json",
-    z.object({
-      name: z.string().trim().min(1).max(80).optional(),
-      unit: z.enum(PEPTIDE_UNITS).optional(),
-      color: z.string().min(4).max(16).optional(),
-      schedule: z
-        .object({
-          days: z.array(z.number().int().min(0).max(6)),
-          morning: z.boolean(),
-          evening: z.boolean(),
-        })
-        .optional(),
-    }),
-  ),
+  zValidator("json", peptidePatchSchema),
   async (c) => {
     const user = requireUser(c);
     const id = c.req.param("id");
