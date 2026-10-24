@@ -49,7 +49,7 @@ const openedOnSchema = z
   .string()
   .superRefine((value, ctx) => {
     if (!normalizeOpenedOn(value)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid date" });
+      ctx.addIssue({ code: "custom", message: "Invalid date" });
     }
   })
   .transform((value) => normalizeOpenedOn(value) ?? value);
@@ -67,7 +67,7 @@ const loggedAtSchema = z
   .string()
   .superRefine((value, ctx) => {
     if (!normalizeLoggedAt(value)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid datetime" });
+      ctx.addIssue({ code: "custom", message: "Invalid datetime" });
     }
   })
   .transform((value) => normalizeLoggedAt(value) ?? value);

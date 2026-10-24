@@ -21,8 +21,7 @@ const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .email()
-  .max(320)
+  .pipe(z.email().max(320))
   .refine((value) => value.length > 0 && !value.endsWith("@oauth.invalid"));
 const passwordSchema = z.string().min(8).max(200);
 const USER_COLS = "id, email, password_hash, display_name, settings, created_at";

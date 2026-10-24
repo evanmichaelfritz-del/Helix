@@ -57,13 +57,22 @@ peptideRoutes.post(
   },
 );
 
-/** Length is checked before element parsing. Zod 3 still walks every item after `.max()` fails. */
+/** Length is checked before element parsing. `.max()` still walks every item after it fails. */
 export const scheduleDaysSchema = z
   .custom<unknown[]>(
     (value) => Array.isArray(value) && value.length <= 7,
     "Array must contain at most 7 element(s)",
   )
-  .pipe(z.array(z.number().int().min(0).max(6)));
+  .pipe(
+    z.array(
+      // `.int()` in Zod 4 also rejects integers outside the safe range. Zod 3 only checked `Number.isInteger`.
+      z
+        .number()
+        .refine((value) => Number.isInteger(value), "Expected integer, received float")
+        .min(0)
+        .max(6),
+    ),
+  );
 
 export const peptidePatchSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
