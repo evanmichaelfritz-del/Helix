@@ -234,13 +234,12 @@ export async function createSqliteDb(url: string): Promise<Database> {
     },
     async batch(statements) {
       if (statements.length === 0) return [];
-      return db.transaction(async (tx) => {
-        const results: unknown[][] = [];
-        for (const item of statements) {
-          results.push(await tx.all(item.sql, item.params ?? []));
-        }
-        return results;
-      });
+      // libsql runs this BEGIN…COMMIT without yielding, so parallel batches cannot nest.
+      const results = await client.batch(
+        statements.map((item) => ({ sql: item.sql, args: item.params ?? [] })),
+        "deferred",
+      );
+      return results.map((result) => result.rows as unknown[]);
     },
   };
   return db;

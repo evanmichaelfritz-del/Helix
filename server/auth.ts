@@ -57,6 +57,9 @@ export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
 }
 
+/** Cost 10, built once. Login compares this when the account has no hash, so that path is not the fast one. */
+export const LOGIN_DUMMY_PASSWORD_HASH = bcrypt.hashSync("helix-login-timing-dummy", 10);
+
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   return bcrypt.compare(password, hash);
 }

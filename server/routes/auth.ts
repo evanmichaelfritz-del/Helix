@@ -6,6 +6,7 @@ import {
   destroySession,
   hashPassword,
   hashToken,
+  LOGIN_DUMMY_PASSWORD_HASH,
   newId,
   requireUser,
   tokenDigestEqual,
@@ -40,25 +41,25 @@ authRoutes.post(
   async (c) => {
     const { email, password } = c.req.valid("json");
     const db = c.get("db");
-    const existing = await db.get<{ id: string }>("SELECT id FROM users WHERE email = ?", [email]);
-    // Hash on both paths so a taken email is not the fast one. No session either way:
-    // an existing account cannot be given this caller's cookie, and a new account signs in via login.
+    // Same hash and the same two writes either way. ON CONFLICT does nothing when the email
+    // exists; the identity insert is keyed to this attempt's id, which is only present if the user insert won.
     const passwordHash = await hashPassword(password);
-    if (!existing) {
-      const user: UserRow = {
-        id: newId(),
-        email,
-        password_hash: passwordHash,
-        display_name: null,
-        settings: JSON.stringify(DEFAULT_SETTINGS),
-        created_at: new Date().toISOString(),
-      };
-      await db.run(
-        "INSERT INTO users (id, email, password_hash, display_name, settings, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        [user.id, user.email, user.password_hash, user.display_name, user.settings, user.created_at],
-      );
-      await insertIdentity(db, user.id, "password", user.id);
-    }
+    const userId = newId();
+    const createdAt = new Date().toISOString();
+    await db.batch([
+      {
+        sql: `INSERT INTO users (id, email, password_hash, display_name, settings, created_at)
+              VALUES (?, ?, ?, ?, ?, ?)
+              ON CONFLICT(email) DO NOTHING`,
+        params: [userId, email, passwordHash, null, JSON.stringify(DEFAULT_SETTINGS), createdAt],
+      },
+      {
+        sql: `INSERT INTO identities (id, user_id, provider, provider_user_id, created_at)
+              SELECT ?, ?, ?, ?, ?
+              WHERE EXISTS (SELECT 1 FROM users WHERE id = ?)`,
+        params: [newId(), userId, "password", userId, createdAt, userId],
+      },
+    ]);
     return c.json({ ok: true }, 201);
   },
 );
@@ -76,7 +77,9 @@ authRoutes.post(
     const { email, password } = c.req.valid("json");
     const db = c.get("db");
     const user = await db.get<UserRow>(`SELECT ${USER_COLS} FROM users WHERE email = ?`, [email]);
-    if (!user || !user.password_hash || !(await verifyPassword(password, user.password_hash))) {
+    const passwordHash = user?.password_hash || LOGIN_DUMMY_PASSWORD_HASH;
+    const matches = await verifyPassword(password, passwordHash);
+    if (!user || !user.password_hash || !matches) {
       return c.json({ error: "Email or password is wrong." }, 401);
     }
     await createSession(c, user.id);
