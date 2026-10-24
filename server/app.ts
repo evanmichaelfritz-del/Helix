@@ -13,6 +13,7 @@ import { doseRoutes, weighInRoutes, workoutRoutes } from "./routes/logs.js";
 import { meRoutes } from "./routes/me.js";
 import { todayRoutes } from "./routes/today.js";
 import { loadUser } from "./auth.js";
+import { authRateLimit } from "./rate-limit.js";
 
 function isPublicApi(path: string): boolean {
   if (path === "/api/healthz") return true;
@@ -47,6 +48,8 @@ export function createApp(db: Database) {
     await ensureMigrated(db);
     await next();
   });
+
+  app.use("/api/auth/*", authRateLimit);
 
   app.use("/api/*", async (c, next) => {
     const path = new URL(c.req.url).pathname;

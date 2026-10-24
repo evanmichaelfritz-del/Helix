@@ -34,6 +34,7 @@ npm run build
    - `WEBAUTHN_RP_ID` = `helix-green-one.vercel.app`
    - Optional `APP_ORIGIN` = `https://helix-green-one.vercel.app`
 4. Deploy. Hobby is enough. Only `api/index.ts` is a serverless function. The Hono app lives in `server/`. It will not use SQLite on Vercel. On first request it runs a Postgres schema (`jsonb`, `boolean`, `timestamptz`, `double precision`).
+5. `POST /api/auth/*` except logout is limited to 10 requests per IP per minute (`server/rate-limit.ts`). Counters are rows in `auth_rate_limits`, so the limit is shared across serverless instances. IPv6 is keyed on its /64.
 
 PWA name is Helix. Add to Home Screen on your phone after the first deploy.
 

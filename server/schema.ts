@@ -113,6 +113,11 @@ export const SQLITE_SCHEMA = [
   )`,
   `CREATE INDEX IF NOT EXISTS identities_user ON identities(user_id)`,
   `CREATE INDEX IF NOT EXISTS webauthn_credentials_user ON webauthn_credentials(user_id)`,
+  `CREATE TABLE IF NOT EXISTS auth_rate_limits (
+    ip TEXT PRIMARY KEY,
+    window_start INTEGER NOT NULL,
+    hits INTEGER NOT NULL
+  )`,
 ];
 
 export const POSTGRES_SCHEMA = [
@@ -237,6 +242,11 @@ export const POSTGRES_SCHEMA = [
   `ALTER TABLE peptides ADD COLUMN IF NOT EXISTS expected_results text`,
   `ALTER TABLE vials ADD COLUMN IF NOT EXISTS bac_ml double precision`,
   `ALTER TABLE vials ADD COLUMN IF NOT EXISTS syringe_units integer NOT NULL DEFAULT 30`,
+  `CREATE TABLE IF NOT EXISTS auth_rate_limits (
+    ip text PRIMARY KEY,
+    window_start bigint NOT NULL,
+    hits integer NOT NULL
+  )`,
 ];
 
 export function schemaFor(dialect: "sqlite" | "postgres"): string[] {
