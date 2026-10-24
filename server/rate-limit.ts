@@ -3,9 +3,10 @@ import type { Env } from "./context.js";
 import type { Database } from "./db.js";
 
 /**
- * Fixed window for every POST /api/auth/*.
+ * Fixed window for POST /api/auth/* except logout.
  * Counters live in `auth_rate_limits` (SQLite locally, Neon on Vercel), one row per IP,
  * so they are shared across serverless instances rather than kept in process memory.
+ * IPv6 keys are the /64 (first four hextets).
  */
 export const AUTH_RATE_LIMIT = {
   limit: 10,
@@ -14,20 +15,17 @@ export const AUTH_RATE_LIMIT = {
 } as const;
 
 const UNKNOWN_IP = "unknown";
+const PRUNE_SAMPLE = 0.01;
 
 export function clientIp(getHeader: (name: string) => string | undefined): string {
-  const forwarded = getHeader("x-forwarded-for");
-  if (forwarded !== undefined) {
-    const first = forwarded.split(",")[0]?.trim() ?? "";
-    const ip = canonicalIp(first);
-    if (ip) return ip;
-  }
-  const real = getHeader("x-real-ip")?.trim();
-  if (real) {
-    const ip = canonicalIp(real);
-    if (ip) return ip;
-  }
-  return UNKNOWN_IP;
+  // Prefer x-vercel-forwarded-for, then the first X-Forwarded-For hop, then x-real-ip.
+  // A spoofed XFF can bypass the limit only off Vercel, because Vercel's edge overwrites these headers.
+  return (
+    headerIp(getHeader("x-vercel-forwarded-for")) ??
+    headerIp(getHeader("x-forwarded-for")) ??
+    headerIp(getHeader("x-real-ip")) ??
+    UNKNOWN_IP
+  );
 }
 
 export async function consumeAuthRateLimit(
@@ -40,15 +38,21 @@ export async function consumeAuthRateLimit(
   const row = await db.get<{ hits: number | string | bigint }>(
     `INSERT INTO auth_rate_limits (ip, window_start, hits) VALUES (?, ?, 1)
      ON CONFLICT(ip) DO UPDATE SET
-       window_start = excluded.window_start,
        hits = CASE
-         WHEN auth_rate_limits.window_start <> excluded.window_start THEN 1
+         WHEN excluded.window_start > auth_rate_limits.window_start THEN 1
          WHEN auth_rate_limits.hits > ? THEN auth_rate_limits.hits
          ELSE auth_rate_limits.hits + 1
+       END,
+       window_start = CASE
+         WHEN excluded.window_start > auth_rate_limits.window_start THEN excluded.window_start
+         ELSE auth_rate_limits.window_start
        END
      RETURNING hits`,
     [ip, windowStart, limit],
   );
+  if (Math.random() < PRUNE_SAMPLE) {
+    await db.run("DELETE FROM auth_rate_limits WHERE window_start < ?", [now - windowMs]);
+  }
   const hits = Number(row?.hits);
   if (!Number.isFinite(hits) || hits > limit) {
     return { allowed: false, retryAfter: retryAfterSeconds(now, windowStart, windowMs) };
@@ -62,7 +66,7 @@ export const authRateLimit: MiddlewareHandler<Env> = async (c, next) => {
     return;
   }
   const path = new URL(c.req.url).pathname;
-  if (!path.startsWith("/api/auth/")) {
+  if (!path.startsWith("/api/auth/") || path === "/api/auth/logout") {
     await next();
     return;
   }
@@ -79,12 +83,25 @@ function retryAfterSeconds(now: number, windowStart: number, windowMs: number): 
   return Math.max(1, Math.ceil(remainingMs / 1000));
 }
 
+function headerIp(value: string | undefined): string | null {
+  if (value === undefined) return null;
+  const first = value.split(",")[0]?.trim() ?? "";
+  return canonicalIp(first);
+}
+
 function canonicalIp(value: string): string | null {
-  if (value.length === 0 || value.length > 64) return null;
-  const v4 = canonicalIpv4(value);
+  let text = value.trim();
+  const zone = text.indexOf("%");
+  if (zone !== -1) text = text.slice(0, zone).trim();
+  if (text.length === 0 || text.length > 64) return null;
+  const v4 = canonicalIpv4(text);
   if (v4) return v4;
-  if (isIpv6(value)) return value.toLowerCase();
-  return null;
+  const v6 = parseIpv6(text);
+  if (!v6) return null;
+  if (v6[0] === 0 && v6[1] === 0 && v6[2] === 0 && v6[3] === 0 && v6[4] === 0 && v6[5] === 0xffff) {
+    return `${v6[6] >> 8}.${v6[6] & 0xff}.${v6[7] >> 8}.${v6[7] & 0xff}`;
+  }
+  return `${v6[0].toString(16)}:${v6[1].toString(16)}:${v6[2].toString(16)}:${v6[3].toString(16)}`;
 }
 
 function canonicalIpv4(value: string): string | null {
@@ -100,22 +117,36 @@ function canonicalIpv4(value: string): string | null {
   return nums.join(".");
 }
 
-function isIpv6(value: string): boolean {
-  if (!value.includes(":") || value.includes("%")) return false;
-  let rest = value;
-  let hasV4 = false;
-  if (rest.includes(".")) {
-    const last = rest.lastIndexOf(":");
-    if (last < 0 || !canonicalIpv4(rest.slice(last + 1))) return false;
-    rest = rest.slice(0, last);
-    hasV4 = true;
+function parseIpv6(value: string): number[] | null {
+  if (!value.includes(":")) return null;
+  const halves = value.split("::");
+  if (halves.length > 2) return null;
+  if (halves.length === 1) {
+    const full = parseIpv6Side(halves[0], true);
+    return full && full.length === 8 ? full : null;
   }
-  if (!/^[0-9a-fA-F:]*$/.test(rest)) return false;
-  const halves = rest.split("::");
-  if (halves.length > 2) return false;
-  const parts = halves.flatMap((half) => (half === "" ? [] : half.split(":")));
-  if (parts.some((part) => part.length === 0 || part.length > 4 || !/^[0-9a-fA-F]+$/.test(part))) return false;
-  const max = hasV4 ? 6 : 8;
-  if (halves.length === 1) return parts.length === max;
-  return parts.length < max;
+  const left = parseIpv6Side(halves[0], false);
+  const right = parseIpv6Side(halves[1], true);
+  if (!left || !right || left.length + right.length >= 8) return null;
+  return [...left, ...new Array<number>(8 - left.length - right.length).fill(0), ...right];
+}
+
+function parseIpv6Side(side: string, allowV4: boolean): number[] | null {
+  if (side === "") return [];
+  const bits = side.split(":");
+  const out: number[] = [];
+  for (let i = 0; i < bits.length; i++) {
+    const bit = bits[i].toLowerCase();
+    if (i === bits.length - 1 && bit.includes(".")) {
+      if (!allowV4) return null;
+      const v4 = canonicalIpv4(bit);
+      if (!v4) return null;
+      const [a, b, c, d] = v4.split(".").map(Number);
+      out.push((a << 8) | b, (c << 8) | d);
+      continue;
+    }
+    if (!/^[0-9a-f]{1,4}$/.test(bit)) return null;
+    out.push(Number.parseInt(bit, 16));
+  }
+  return out;
 }
