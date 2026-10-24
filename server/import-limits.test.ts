@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
+import { ZodError } from "zod";
 import { parseHelixHelper } from "../shared/import/helix.js";
 import { parseImportFile } from "../shared/import/index.js";
 import { WHOOP_IMPORT_CAP } from "../shared/import/whoop.js";
 import { HELIX_EXPORT_KIND } from "../shared/types.js";
-import { createApp } from "./app.js";
+import { API_BODY_MAX_BYTES, createApp } from "./app.js";
 import { createSqliteDb, migrate } from "./db.js";
+import { peptidePatchSchema } from "./routes/catalog.js";
 import { IMPORT_BODY_MAX_BYTES, recordsSchema } from "./routes/import.js";
+import { formatZodError } from "./validate.js";
 
 async function testApp() {
   const db = await createSqliteDb(":memory:");
@@ -295,7 +298,8 @@ describe("import body limit and schema bounds", () => {
     expect(parsed.success).toBe(false);
     if (parsed.success) return;
     expect(parsed.error.issues).toHaveLength(1);
-    expect(parsed.error.issues[0]).toMatchObject({ code: "too_big", path: ["healthDays"] });
+    expect(parsed.error.issues[0]?.path).toEqual(["healthDays"]);
+    expect(parsed.error.issues[0]?.message).toBe("Array must contain at most 400 element(s)");
     expect(parsedMs).toBeLessThan(500);
 
     const httpStarted = performance.now();
@@ -494,7 +498,7 @@ describe("import body limit and schema bounds", () => {
   it("truncates a zod enum message that echoes a huge received value", async () => {
     const { app } = await testApp();
     const cookie = await signup(app);
-    const received = "x".repeat(200_000);
+    const received = "x".repeat(2_000);
     const res = await app.request("/api/peptides", {
       method: "POST",
       headers: { Cookie: cookie, "Content-Type": "application/json" },
@@ -509,7 +513,74 @@ describe("import body limit and schema bounds", () => {
     expect((data.error ?? "").length).toBeLessThan(220);
   });
 
-  it("rejects a huge peptide schedule days array quickly", async () => {
+  it("drops a trailing lone high surrogate when clipping a zod message", () => {
+    const message = `${"a".repeat(198)}\uD800${"b".repeat(40)}`;
+    const error = new ZodError([{ code: "custom", path: ["unit"], message }]);
+    expect(formatZodError(error)).toBe(`unit: ${"a".repeat(198)}…`);
+    expect(formatZodError(error).includes("\uD800")).toBe(false);
+  });
+
+  it("accepts real peptide schedules and rejects a bad day before storing it", async () => {
+    const { app } = await testApp();
+    const cookie = await signup(app);
+    const headers = { Cookie: cookie, "Content-Type": "application/json" };
+    const created = await app.request("/api/peptides", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "MOTS-C", unit: "mcg" }),
+    });
+    expect(created.status).toBe(201);
+    const { peptide } = (await created.json()) as { peptide: { id: string; schedule: { days: number[] } } };
+
+    const accepted: Array<{ days: number[]; stored: number[] }> = [
+      { days: [], stored: [0, 1, 2, 3, 4, 5, 6] },
+      { days: [0], stored: [0] },
+      { days: [1, 3, 5], stored: [1, 3, 5] },
+      { days: [0, 1, 2, 3, 4, 5, 6], stored: [0, 1, 2, 3, 4, 5, 6] },
+      { days: [0, 0, 1], stored: [0, 1] },
+    ];
+    for (const schedule of accepted) {
+      const res = await app.request(`/api/peptides/${peptide.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ schedule: { days: schedule.days, morning: true, evening: false } }),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { peptide: { schedule: { days: number[] } } };
+      expect(body.peptide.schedule.days).toEqual(schedule.stored);
+    }
+
+    for (const days of [[7], [-1], [1.5], ["a"], [0, 1, 2, 3, 4, 5, 6, 0]]) {
+      const res = await app.request(`/api/peptides/${peptide.id}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ schedule: { days, morning: true, evening: false } }),
+      });
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: unknown };
+      expect(typeof body.error).toBe("string");
+      expect(String(body.error).startsWith("schedule.days")).toBe(true);
+    }
+  });
+
+  it("rejects 2.2 million schedule days in one check, without parsing each element", async () => {
+    const days = new Array(2_200_000).fill(0);
+    const cpu = process.cpuUsage();
+    const started = performance.now();
+    const parsed = await peptidePatchSchema.safeParseAsync({
+      schedule: { days, morning: true, evening: false },
+    });
+    const elapsed = performance.now() - started;
+    const used = process.cpuUsage(cpu);
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(formatZodError(parsed.error)).toBe("schedule.days: Array must contain at most 7 element(s)");
+    expect(parsed.error.issues).toHaveLength(1);
+    expect(elapsed).toBeLessThan(500);
+    expect((used.user + used.system) / 1000).toBeLessThan(500);
+  });
+
+  it("rejects a 4.4MB peptide patch and a 70KB weigh-in before parsing", async () => {
     const { app } = await testApp();
     const cookie = await signup(app);
     const headers = { Cookie: cookie, "Content-Type": "application/json" };
@@ -520,26 +591,44 @@ describe("import body limit and schema bounds", () => {
     });
     expect(created.status).toBe(201);
     const { peptide } = (await created.json()) as { peptide: { id: string } };
-    const kept = await app.request(`/api/peptides/${peptide.id}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ schedule: { days: [0, 1, 2, 3, 4, 5, 6], morning: true, evening: false } }),
-    });
-    expect(kept.status).toBe(200);
 
-    const days = new Array(400_000).fill("0").join(",");
     const started = performance.now();
-    const res = await app.request(`/api/peptides/${peptide.id}`, {
+    const huge = await app.request(`/api/peptides/${peptide.id}`, {
       method: "PATCH",
       headers,
-      body: `{"schedule":{"days":[${days}],"morning":true,"evening":false}}`,
+      body: "x".repeat(4_400_000),
     });
     const elapsed = performance.now() - started;
-    expect(res.status).toBe(400);
+    expect(huge.status).toBe(413);
     expect(elapsed).toBeLessThan(500);
-    expect(await res.json()).toEqual({
-      error: "schedule.days: Array must contain at most 7 element(s)",
+    expect(await huge.json()).toEqual({ error: "Request is too large." });
+
+    const weighIn = await app.request("/api/weigh-ins", {
+      method: "POST",
+      headers,
+      body: "y".repeat(70 * 1024),
     });
+    expect(weighIn.status).toBe(413);
+    const weighBody = (await weighIn.json()) as { error?: unknown };
+    expect(weighBody).toEqual({ error: "Request is too large." });
+    expect(typeof weighBody.error).toBe("string");
+  });
+
+  it("still accepts a 999999 byte import while the 64KB cap covers other routes", async () => {
+    const { app } = await testApp();
+    const cookie = await signup(app);
+    const core = JSON.stringify({ source: "whoop", healthDays: [], workouts: [], weighIns: [] });
+    const body = core + " ".repeat(IMPORT_BODY_MAX_BYTES - 1 - Buffer.byteLength(core));
+    expect(Buffer.byteLength(body)).toBe(999_999);
+    expect(Buffer.byteLength(body)).toBeGreaterThan(API_BODY_MAX_BYTES);
+
+    const res = await app.request("/api/import/records", {
+      method: "POST",
+      headers: { Cookie: cookie, "Content-Type": "application/json" },
+      body,
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ healthDays: 0, workouts: 0, weighIns: 0 });
   });
 
   it("lets overlapping first requests share one migrate", async () => {

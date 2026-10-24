@@ -80,9 +80,17 @@ const doseSchema = z.object({
   loggedAt: loggedAtSchema.optional(),
 });
 
-/** Length is checked on unknown elements before item schemas run, so a huge array fails once. */
+/**
+ * Length is checked before item schemas run. `z.array().max()` still parses every
+ * element, and safeParseAsync builds a promise per element, so a huge array hangs.
+ */
 function capped<T extends z.ZodTypeAny>(item: T, max: number) {
-  return z.array(z.unknown()).max(max).pipe(z.array(item));
+  return z
+    .custom<unknown[]>(
+      (value) => Array.isArray(value) && value.length <= max,
+      `Array must contain at most ${max} element(s)`,
+    )
+    .pipe(z.array(item));
 }
 
 export const recordsSchema = z.object({
