@@ -151,8 +151,14 @@ describe("auth rate limit", () => {
         body: JSON.stringify({ email: "evan@example.com", password: "password12" }),
       });
       expect(signup.status).toBe(201);
-      const cookie = (signup.headers.get("set-cookie") ?? "").split(";")[0];
-      for (let i = 0; i < AUTH_RATE_LIMIT.limit - 1; i++) {
+      const signedIn = await app.request("/api/auth/login", {
+        method: "POST",
+        headers: headers(ip),
+        body: JSON.stringify({ email: "evan@example.com", password: "password12" }),
+      });
+      expect(signedIn.status).toBe(200);
+      const cookie = (signedIn.headers.get("set-cookie") ?? "").split(";")[0];
+      for (let i = 0; i < AUTH_RATE_LIMIT.limit - 2; i++) {
         expect((await login(app, ip)).status).toBe(401);
       }
       expect((await login(app, ip)).status).toBe(429);

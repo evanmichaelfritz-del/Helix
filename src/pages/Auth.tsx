@@ -85,9 +85,25 @@ export function AuthPage(props: { offerSavePasskey?: boolean; onSignedUp?: () =>
     setBusy("password");
     setError(null);
     try {
-      const fn = mode === "login" ? client.login : client.signup;
-      const { user } = await fn(email.trim(), password);
-      finishAuth(user, mode === "signup");
+      const trimmed = email.trim();
+      if (mode === "login") {
+        const { user } = await client.login(trimmed, password);
+        finishAuth(user, false);
+        return;
+      }
+      await client.signup(trimmed, password);
+      try {
+        const { user } = await client.login(trimmed, password);
+        finishAuth(user, true);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          setPassword("");
+          setMode("login");
+          setError("If this email can be used, you can sign in now.");
+          return;
+        }
+        throw err;
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not sign in.");
     } finally {
