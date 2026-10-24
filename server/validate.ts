@@ -212,6 +212,25 @@ function valueAt(root: unknown, path: readonly PropertyKey[]): unknown {
   return current;
 }
 
+/** Zod 3 named the received type for non-strings. String() throws or overflows on hostile objects and arrays. */
+function enumValueMessage(expected: string, value: unknown): string {
+  if (value === undefined) return "Required";
+  if (value === null) return `Expected ${expected}, received null`;
+  if (Array.isArray(value)) return `Expected ${expected}, received array`;
+  switch (typeof value) {
+    case "string":
+    case "number":
+    case "boolean":
+    case "bigint":
+    case "symbol":
+      return `Invalid enum value. Expected ${expected}, received '${String(value)}'`;
+    case "object":
+      return `Expected ${expected}, received object`;
+    default:
+      return `Expected ${expected}, received ${typeof value}`;
+  }
+}
+
 function v3Message(issue: FormattableIssue, input: unknown, hasInput: boolean): string {
   switch (issue.code) {
     case "too_big":
@@ -227,8 +246,8 @@ function v3Message(issue: FormattableIssue, input: unknown, hasInput: boolean): 
       return `Invalid ${issue.format ?? "input"}`;
     case "invalid_value": {
       const expected = (issue.values ?? []).map(quoteV3).join(" | ");
-      const received = hasInput ? `, received '${String(valueAt(input, issue.path))}'` : "";
-      return `Invalid enum value. Expected ${expected}${received}`;
+      if (!hasInput) return `Invalid enum value. Expected ${expected}`;
+      return enumValueMessage(expected, valueAt(input, issue.path));
     }
     case "invalid_type": {
       const match = /^Invalid input: expected (.*), received (.*)$/.exec(issue.message);

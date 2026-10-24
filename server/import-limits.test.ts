@@ -641,6 +641,85 @@ describe("import body limit and schema bounds", () => {
     expect(await res.json()).toMatchObject({ healthDays: 0, workouts: 0, weighIns: 0 });
   });
 
+  it("rejects hostile enum values with the previous wording instead of a 500", async () => {
+    const { app } = await testApp();
+    const cookie = await signup(app);
+    const deep = `${"[".repeat(5_000)}1${"]".repeat(5_000)}`;
+    const kind = "'register' | 'authenticate'";
+    const unit = "'mcg' | 'mg' | 'IU' | 'mL'";
+    const cases: Array<{ path: string; method: string; headers: Record<string, string>; body: string; error: string }> = [
+      {
+        path: "/api/auth/passkey/options",
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.91" },
+        body: JSON.stringify({ kind: { toString: 1 } }),
+        error: `kind: Expected ${kind}, received object`,
+      },
+      {
+        path: "/api/auth/passkey/options",
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.91" },
+        body: JSON.stringify({ kind: [{ toString: 1 }] }),
+        error: `kind: Expected ${kind}, received array`,
+      },
+      {
+        path: "/api/auth/passkey/options",
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.91" },
+        body: JSON.stringify([[{ toString: "x" }]]),
+        error: "request: Expected object, received array",
+      },
+      {
+        path: "/api/auth/passkey/options",
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.91" },
+        body: JSON.stringify({ kind: [[{ toString: "x" }]] }),
+        error: `kind: Expected ${kind}, received array`,
+      },
+      {
+        path: "/api/auth/passkey/options",
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.91" },
+        body: `{"kind":${deep}}`,
+        error: `kind: Expected ${kind}, received array`,
+      },
+      {
+        path: "/api/peptides",
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: cookie },
+        body: JSON.stringify({ name: "MOTS-C", unit: { toString: 1 } }),
+        error: `unit: Expected ${unit}, received object`,
+      },
+      {
+        path: "/api/peptides",
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: cookie },
+        body: JSON.stringify({ name: "MOTS-C", unit: [{ toString: 1 }] }),
+        error: `unit: Expected ${unit}, received array`,
+      },
+      {
+        path: "/api/peptides",
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: cookie },
+        body: JSON.stringify({ name: "MOTS-C", unit: [[{ toString: "x" }]] }),
+        error: `unit: Expected ${unit}, received array`,
+      },
+      {
+        path: "/api/peptides",
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: cookie },
+        body: `{"name":"MOTS-C","unit":${deep}}`,
+        error: `unit: Expected ${unit}, received array`,
+      },
+    ];
+
+    for (const item of cases) {
+      const res = await app.request(item.path, { method: item.method, headers: item.headers, body: item.body });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: item.error });
+    }
+  });
+
   it("lets overlapping first requests share one migrate", async () => {
     const db = await createSqliteDb(":memory:");
     const app = createApp(db);
