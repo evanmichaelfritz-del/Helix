@@ -21,6 +21,7 @@ import { FilePicker, ImportedCounts } from "./Vitals.tsx";
 export function AccountPage() {
   const { user, setUser, bump } = useAppState();
   const [msg, setMsg] = useState<string | null>(null);
+  const [faceIdMsg, setFaceIdMsg] = useState<string | null>(null);
   const [imported, setImported] = useState<ImportResult | null>(null);
   const [themeOpen, setThemeOpen] = useState(false);
   if (!user) return null;
@@ -52,7 +53,7 @@ export function AccountPage() {
       return;
     }
     if (!faceIdAvailable()) {
-      setMsg("Face ID is not available on this device.");
+      setFaceIdMsg("Face ID is not available on this device.");
       return;
     }
     try {
@@ -62,12 +63,12 @@ export function AccountPage() {
         displayName: account.displayName,
       });
       if (!ok) {
-        setMsg("Could not enable Face ID.");
+        setFaceIdMsg("Could not enable Face ID.");
         return;
       }
       await patch({ faceId: true });
     } catch {
-      setMsg("Face ID was cancelled.");
+      setFaceIdMsg("Face ID was cancelled.");
     }
   }
 
@@ -98,6 +99,7 @@ export function AccountPage() {
                     : "Register this device"
                   : "Not available on this device"}
               </div>
+              {faceIdMsg ? <p className="muted" style={{ marginTop: 10 }}>{faceIdMsg}</p> : null}
             </div>
             <button type="button" className={s.faceId ? "on" : undefined} onClick={() => void toggleFaceId()} aria-pressed={s.faceId}>
               <i />
