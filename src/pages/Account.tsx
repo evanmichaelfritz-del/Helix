@@ -47,6 +47,7 @@ export function AccountPage() {
 
   const account = user;
   async function toggleFaceId() {
+    setFaceIdMsg(null);
     if (s.faceId) {
       clearFaceId(account.id);
       await patch({ faceId: false });

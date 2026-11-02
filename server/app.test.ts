@@ -1031,6 +1031,7 @@ describe("auth page lock", () => {
     expect(you).toContain('setFaceIdMsg("Face ID is not available on this device.")');
     expect(you).toContain('setFaceIdMsg("Could not enable Face ID.")');
     expect(you).toContain('setFaceIdMsg("Face ID was cancelled.")');
+    expect(you).toMatch(/async function toggleFaceId\(\) \{\s*setFaceIdMsg\(null\);/);
     expect(you).not.toContain('setMsg("Face ID');
     const faceRow = you.slice(you.indexOf("isIPhoneOrIPad()"), you.indexOf('className="kicker"'));
     expect(faceRow).toContain("<strong>Face ID</strong>");
