@@ -1025,6 +1025,24 @@ describe("auth page lock", () => {
     expect(app).toContain("setUser(r.user)");
   });
 
+  it("keeps Face ID errors on the Face ID row", () => {
+    const you = readFileSync("src/pages/Account.tsx", "utf8");
+    expect(you).toContain("const [faceIdMsg, setFaceIdMsg] = useState<string | null>(null)");
+    expect(you).toContain('setFaceIdMsg("Face ID is not available on this device.")');
+    expect(you).toContain('setFaceIdMsg("Could not enable Face ID.")');
+    expect(you).toContain('setFaceIdMsg("Face ID was cancelled.")');
+    expect(you).toMatch(/async function toggleFaceId\(\) \{\s*setFaceIdMsg\(null\);/);
+    expect(you).not.toContain('setMsg("Face ID');
+    const faceRow = you.slice(you.indexOf("isIPhoneOrIPad()"), you.indexOf('className="kicker"'));
+    expect(faceRow).toContain("<strong>Face ID</strong>");
+    expect(faceRow).toContain("{faceIdMsg ?");
+    const card = you.slice(you.indexOf('className="kicker"'));
+    expect(card).toContain("{msg && !imported ?");
+    expect(card).not.toContain("faceIdMsg");
+    expect(card).toContain("setMsg(text)");
+    expect(card).toContain("setMsg(err.message)");
+  });
+
   it("does not require OAuth-only accounts to set a password on Auth or You", () => {
     const auth = readFileSync("src/pages/Auth.tsx", "utf8");
     const you = readFileSync("src/pages/Account.tsx", "utf8");
