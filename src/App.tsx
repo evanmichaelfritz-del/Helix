@@ -6,6 +6,7 @@ import {
   markUnlocked,
   persistHelixTheme,
   storedCredentialId,
+  syncBackdropChrome,
   unlockFaceId,
   watchSystemTheme,
 } from "./lib/chrome.ts";
@@ -38,6 +39,10 @@ function Root() {
   const [ready, setReady] = useState(false);
   const [locked, setLocked] = useState(false);
   const [savePasskey, setSavePasskey] = useState(false);
+
+  useEffect(() => {
+    syncBackdropChrome();
+  }, []);
 
   useEffect(() => {
     client
