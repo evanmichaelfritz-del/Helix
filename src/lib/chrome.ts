@@ -29,6 +29,18 @@ export function persistHelixTheme(theme: ThemePref): void {
   localStorage.setItem(HELIX_THEME_KEY, theme);
 }
 
+export function syncBackdropChrome(): void {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  const css = window.CSS ?? (typeof CSS !== "undefined" ? CSS : undefined);
+  if (!css || typeof css.supports !== "function") return;
+  const root = document.documentElement;
+  if (!root) return;
+  const supported =
+    css.supports("backdrop-filter", "blur(1px)") ||
+    css.supports("-webkit-backdrop-filter", "blur(1px)");
+  root.classList.toggle("no-backdrop", !supported);
+}
+
 export function applyChrome(opts: { theme: ThemePref; reduceEffects: boolean }): void {
   const root = document.documentElement;
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;

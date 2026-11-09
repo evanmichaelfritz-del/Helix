@@ -1769,3 +1769,48 @@ html.light .boot {
   .theme-overlay { animation: none; }
   .skeleton-card { animation: none; }
 }
+
+/* Opaque stand-in for glass that would otherwise be see-through without backdrop-filter. */
+html.no-backdrop .chrome,
+html.no-backdrop .sheet,
+html.no-backdrop .theme-overlay,
+html.no-backdrop .btn.ghost,
+html.no-backdrop .stepper button,
+html.no-backdrop .field input,
+html.no-backdrop .field select,
+html.no-backdrop .tabs button,
+html.no-backdrop .subnav a,
+html.no-backdrop .expand-btn,
+html.no-backdrop .day-pill,
+html.no-backdrop .time-pill,
+html.no-backdrop .toggle select,
+html.no-backdrop .toggle button,
+html.no-backdrop .toggle .theme-open,
+html.no-backdrop .cal-nav button,
+html.no-backdrop .calc-row input,
+html.no-backdrop .calc-row select,
+html.no-backdrop .quick-log-btn.done {
+  background: var(--solid);
+}
+html.no-backdrop .btn,
+html.no-backdrop .fab,
+html.no-backdrop .fab-item,
+html.no-backdrop .quick-log-btn {
+  background: var(--primary);
+}
+html.no-backdrop .tabs button.on,
+html.no-backdrop .tabs button.active,
+html.no-backdrop .tabs button[aria-pressed="true"],
+html.no-backdrop .subnav a.on,
+html.no-backdrop .subnav a.active,
+html.no-backdrop .day-pill.on,
+html.no-backdrop .day-pill.active,
+html.no-backdrop .day-pill[aria-pressed="true"],
+html.no-backdrop .time-pill.on,
+html.no-backdrop .time-pill.active,
+html.no-backdrop .time-pill[aria-pressed="true"],
+html.no-backdrop .toggle button.on,
+html.no-backdrop .toggle button.active,
+html.no-backdrop .toggle button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 36%, var(--solid));
+}
